@@ -10,11 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthStaffRouteImport } from './routes/auth.staff'
+import { Route as AuthenticatedReceptionIndexRouteImport } from './routes/_authenticated/reception/index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthStaffRoute = AuthStaffRouteImport.update({
@@ -22,30 +28,46 @@ const AuthStaffRoute = AuthStaffRouteImport.update({
   path: '/auth/staff',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedReceptionIndexRoute =
+  AuthenticatedReceptionIndexRouteImport.update({
+    id: '/reception/',
+    path: '/reception/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth/staff': typeof AuthStaffRoute
+  '/reception/': typeof AuthenticatedReceptionIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth/staff': typeof AuthStaffRoute
+  '/reception': typeof AuthenticatedReceptionIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth/staff': typeof AuthStaffRoute
+  '/_authenticated/reception/': typeof AuthenticatedReceptionIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth/staff'
+  fullPaths: '/' | '/auth/staff' | '/reception/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth/staff'
-  id: '__root__' | '/' | '/auth/staff'
+  to: '/' | '/auth/staff' | '/reception'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/auth/staff'
+    | '/_authenticated/reception/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthStaffRoute: typeof AuthStaffRoute
 }
 
@@ -58,6 +80,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth/staff': {
       id: '/auth/staff'
       path: '/auth/staff'
@@ -65,11 +94,30 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthStaffRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/reception/': {
+      id: '/_authenticated/reception/'
+      path: '/reception'
+      fullPath: '/reception/'
+      preLoaderRoute: typeof AuthenticatedReceptionIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedReceptionIndexRoute: typeof AuthenticatedReceptionIndexRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedReceptionIndexRoute: AuthenticatedReceptionIndexRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthStaffRoute: AuthStaffRoute,
 }
 export const routeTree = rootRouteImport
