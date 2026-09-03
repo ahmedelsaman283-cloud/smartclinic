@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthStaffRouteImport } from './routes/auth.staff'
 import { Route as AuthenticatedDoctorIndexRouteImport } from './routes/_authenticated/doctor/index'
+import { Route as AuthenticatedDoctorPatientsRouteImport } from './routes/_authenticated/doctor/patients'
 import { Route as AuthenticatedReceptionIndexRouteImport } from './routes/_authenticated/reception/index'
 import { Route as AuthenticatedReceptionAppointmentsRouteImport } from './routes/_authenticated/reception/appointments'
 import { Route as AuthenticatedReceptionInvoicesRouteImport } from './routes/_authenticated/reception/invoices'
@@ -36,6 +37,12 @@ const AuthenticatedDoctorIndexRoute =
   AuthenticatedDoctorIndexRouteImport.update({
     id: '/doctor/',
     path: '/doctor/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedDoctorPatientsRoute =
+  AuthenticatedDoctorPatientsRouteImport.update({
+    id: '/doctor/patients',
+    path: '/doctor/patients',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedReceptionIndexRoute =
@@ -66,6 +73,7 @@ const AuthenticatedReceptionPatientsRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth/staff': typeof AuthStaffRoute
+  '/doctor/patients': typeof AuthenticatedDoctorPatientsRoute
   '/reception/appointments': typeof AuthenticatedReceptionAppointmentsRoute
   '/reception/invoices': typeof AuthenticatedReceptionInvoicesRoute
   '/reception/patients': typeof AuthenticatedReceptionPatientsRoute
@@ -75,6 +83,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth/staff': typeof AuthStaffRoute
+  '/doctor/patients': typeof AuthenticatedDoctorPatientsRoute
   '/reception/appointments': typeof AuthenticatedReceptionAppointmentsRoute
   '/reception/invoices': typeof AuthenticatedReceptionInvoicesRoute
   '/reception/patients': typeof AuthenticatedReceptionPatientsRoute
@@ -86,6 +95,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth/staff': typeof AuthStaffRoute
+  '/_authenticated/doctor/patients': typeof AuthenticatedDoctorPatientsRoute
   '/_authenticated/reception/appointments': typeof AuthenticatedReceptionAppointmentsRoute
   '/_authenticated/reception/invoices': typeof AuthenticatedReceptionInvoicesRoute
   '/_authenticated/reception/patients': typeof AuthenticatedReceptionPatientsRoute
@@ -97,6 +107,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth/staff'
+    | '/doctor/patients'
     | '/reception/appointments'
     | '/reception/invoices'
     | '/reception/patients'
@@ -106,6 +117,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth/staff'
+    | '/doctor/patients'
     | '/reception/appointments'
     | '/reception/invoices'
     | '/reception/patients'
@@ -116,6 +128,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth/staff'
+    | '/_authenticated/doctor/patients'
     | '/_authenticated/reception/appointments'
     | '/_authenticated/reception/invoices'
     | '/_authenticated/reception/patients'
@@ -159,6 +172,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDoctorIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/doctor/patients': {
+      id: '/_authenticated/doctor/patients'
+      path: '/doctor/patients'
+      fullPath: '/doctor/patients'
+      preLoaderRoute: typeof AuthenticatedDoctorPatientsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/reception/': {
       id: '/_authenticated/reception/'
       path: '/reception'
@@ -191,6 +211,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedDoctorPatientsRoute: typeof AuthenticatedDoctorPatientsRoute
   AuthenticatedReceptionAppointmentsRoute: typeof AuthenticatedReceptionAppointmentsRoute
   AuthenticatedReceptionInvoicesRoute: typeof AuthenticatedReceptionInvoicesRoute
   AuthenticatedReceptionPatientsRoute: typeof AuthenticatedReceptionPatientsRoute
@@ -199,6 +220,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedDoctorPatientsRoute: AuthenticatedDoctorPatientsRoute,
   AuthenticatedReceptionAppointmentsRoute:
     AuthenticatedReceptionAppointmentsRoute,
   AuthenticatedReceptionInvoicesRoute: AuthenticatedReceptionInvoicesRoute,

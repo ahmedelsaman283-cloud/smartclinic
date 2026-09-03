@@ -1,0 +1,161 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { ArrowRight } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { AppShell, Card, EmptyState } from "@/components/app-shell";
+import { doctorNav } from "@/components/nav-items";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  STATUS_LABELS,
+  formatDate,
+  formatTime,
+  todayISO,
+  type Appointment,
+  type Patient,
+} from "@/lib/clinic";
+
+export const Route = createFileRoute("/_authenticated/doctor/patient/$id")({
+  head: () => ({
+    meta: [
+      { title: "ملف المريض | طبيب العيادة الذكية" },
+      { name: "description", content: "بيانات المريض والسجل الطبي وملاحظات زيارة اليوم." },
+      { property: "og:title", content: "ملف المريض | طبيب العيادة الذكية" },
+      { property: "og:description", content: "بيانات المريض والسجل الطبي وملاحظات زيارة اليوم." },
+    ],
+  }),
+  component: PatientFile,
+});
+
+function PatientFile() {
+  const { id } = Route.useParams();
+  const queryClient = useQueryClient();
+  const today = todayISO();
+  const [notes, setNotes] = useState("");
+
+  const { data: patient } = useQuery({
+    queryKey: ["patients", id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("patients").select("*").eq("id", id).maybeSingle();
+      if (error) throw error;
+      return data as Patient | null;
+    },
+  });
+
+  const { data: appointments = [] } = useQuery({
+    queryKey: ["appointments", "patient", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("appointments")
+        .select("*")
+        .eq("patient_id", id)
+        .order("appointment_date", { ascending: false })
+        .order("appointment_time", { ascending: false });
+      if (error) throw error;
+      return data as Appointment[];
+    },
+  });
+
+  const todayVisit = appointments.find((a) => a.appointment_date === today) ?? null;
+  const history = appointments.filter((a) => a.id !== todayVisit?.id);
+
+  useEffect(() => {
+    setNotes(todayVisit?.notes ?? "");
+  }, [todayVisit?.id, todayVisit?.notes]);
+
+  const saveNotes = useMutation({
+    mutationFn: async () => {
+      if (!todayVisit) throw new Error("no visit");
+      const { error } = await supabase.from("appointments").update({ notes }).eq("id", todayVisit.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("تم حفظ الملاحظات");
+      queryClient.invalidateQueries({ queryKey: ["appointments"] });
+    },
+    onError: () => toast.error("تعذر حفظ الملاحظات"),
+  });
+
+  return (
+    <AppShell
+      title="ملف المريض"
+      nav={doctorNav}
+      action={
+        <Link
+          to="/doctor"
+          className="inline-flex h-9 items-center gap-1 rounded-full border border-border px-3 text-xs text-muted-foreground"
+        >
+          <ArrowRight className="h-4 w-4" />
+          رجوع
+        </Link>
+      }
+    >
+      <Card className="mb-5">
+        <h2 className="mb-3 text-sm font-semibold text-muted-foreground">البيانات الأساسية</h2>
+        <p className="text-xl font-bold">{patient?.full_name ?? "—"}</p>
+        <p dir="ltr" className="text-right text-sm text-muted-foreground">
+          {patient?.phone ?? "—"}
+        </p>
+        <p className="text-sm text-muted-foreground">
+          تاريخ الميلاد: {patient?.date_of_birth ? formatDate(patient.date_of_birth) : "—"}
+        </p>
+      </Card>
+
+      <h2 className="mb-3 px-1 text-sm font-semibold text-muted-foreground">السجل</h2>
+      {history.length === 0 ? (
+        <EmptyState text="لا توجد زيارات سابقة" />
+      ) : (
+        <ol className="relative space-y-3 border-e-2 border-border pe-4">
+          {history.map((visit) => (
+            <li key={visit.id} className="relative">
+              <span className="absolute -end-[21px] top-4 h-2.5 w-2.5 rounded-full bg-primary" />
+              <Card>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold">{formatDate(visit.appointment_date)}</p>
+                  <span className="text-xs text-muted-foreground">
+                    {formatTime(visit.appointment_time)} · {STATUS_LABELS[visit.status]}
+                  </span>
+                </div>
+                {visit.reason ? (
+                  <p className="mt-1 text-xs text-muted-foreground">سبب الزيارة: {visit.reason}</p>
+                ) : null}
+                <p className="mt-2 whitespace-pre-wrap text-sm">
+                  {visit.notes?.trim() ? visit.notes : "لا توجد ملاحظات"}
+                </p>
+              </Card>
+            </li>
+          ))}
+        </ol>
+      )}
+
+      <h2 className="mt-6 mb-3 px-1 text-sm font-semibold text-muted-foreground">زيارة اليوم</h2>
+      <Card>
+        {todayVisit ? (
+          <>
+            <p className="mb-2 text-xs text-muted-foreground">
+              {formatTime(todayVisit.appointment_time)} · {STATUS_LABELS[todayVisit.status]}
+            </p>
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={6}
+              placeholder="اكتب تشخيص وملاحظات زيارة اليوم..."
+              className="rounded-2xl"
+            />
+            <Button
+              className="mt-3 h-11 w-full rounded-2xl"
+              disabled={saveNotes.isPending}
+              onClick={() => saveNotes.mutate()}
+            >
+              {saveNotes.isPending ? "جارٍ الحفظ..." : "حفظ الملاحظات"}
+            </Button>
+          </>
+        ) : (
+          <p className="text-sm text-muted-foreground">لا يوجد موعد لهذا المريض اليوم.</p>
+        )}
+      </Card>
+    </AppShell>
+  );
+}
