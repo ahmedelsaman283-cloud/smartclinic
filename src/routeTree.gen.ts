@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthStaffRouteImport } from './routes/auth.staff'
 import { Route as AuthenticatedReceptionIndexRouteImport } from './routes/_authenticated/reception/index'
+import { Route as AuthenticatedReceptionPatientsRouteImport } from './routes/_authenticated/reception/patients'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -34,15 +35,23 @@ const AuthenticatedReceptionIndexRoute =
     path: '/reception/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedReceptionPatientsRoute =
+  AuthenticatedReceptionPatientsRouteImport.update({
+    id: '/reception/patients',
+    path: '/reception/patients',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth/staff': typeof AuthStaffRoute
+  '/reception/patients': typeof AuthenticatedReceptionPatientsRoute
   '/reception/': typeof AuthenticatedReceptionIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth/staff': typeof AuthStaffRoute
+  '/reception/patients': typeof AuthenticatedReceptionPatientsRoute
   '/reception': typeof AuthenticatedReceptionIndexRoute
 }
 export interface FileRoutesById {
@@ -50,18 +59,20 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth/staff': typeof AuthStaffRoute
+  '/_authenticated/reception/patients': typeof AuthenticatedReceptionPatientsRoute
   '/_authenticated/reception/': typeof AuthenticatedReceptionIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth/staff' | '/reception/'
+  fullPaths: '/' | '/auth/staff' | '/reception/patients' | '/reception/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth/staff' | '/reception'
+  to: '/' | '/auth/staff' | '/reception/patients' | '/reception'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth/staff'
+    | '/_authenticated/reception/patients'
     | '/_authenticated/reception/'
   fileRoutesById: FileRoutesById
 }
@@ -101,14 +112,23 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedReceptionIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/reception/patients': {
+      id: '/_authenticated/reception/patients'
+      path: '/reception/patients'
+      fullPath: '/reception/patients'
+      preLoaderRoute: typeof AuthenticatedReceptionPatientsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedReceptionPatientsRoute: typeof AuthenticatedReceptionPatientsRoute
   AuthenticatedReceptionIndexRoute: typeof AuthenticatedReceptionIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedReceptionPatientsRoute: AuthenticatedReceptionPatientsRoute,
   AuthenticatedReceptionIndexRoute: AuthenticatedReceptionIndexRoute,
 }
 
