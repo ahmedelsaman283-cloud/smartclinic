@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthStaffRouteImport } from './routes/auth.staff'
 import { Route as AuthenticatedReceptionIndexRouteImport } from './routes/_authenticated/reception/index'
+import { Route as AuthenticatedReceptionAppointmentsRouteImport } from './routes/_authenticated/reception/appointments'
 import { Route as AuthenticatedReceptionPatientsRouteImport } from './routes/_authenticated/reception/patients'
 
 const IndexRoute = IndexRouteImport.update({
@@ -35,6 +36,12 @@ const AuthenticatedReceptionIndexRoute =
     path: '/reception/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedReceptionAppointmentsRoute =
+  AuthenticatedReceptionAppointmentsRouteImport.update({
+    id: '/reception/appointments',
+    path: '/reception/appointments',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedReceptionPatientsRoute =
   AuthenticatedReceptionPatientsRouteImport.update({
     id: '/reception/patients',
@@ -45,12 +52,14 @@ const AuthenticatedReceptionPatientsRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth/staff': typeof AuthStaffRoute
+  '/reception/appointments': typeof AuthenticatedReceptionAppointmentsRoute
   '/reception/patients': typeof AuthenticatedReceptionPatientsRoute
   '/reception/': typeof AuthenticatedReceptionIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth/staff': typeof AuthStaffRoute
+  '/reception/appointments': typeof AuthenticatedReceptionAppointmentsRoute
   '/reception/patients': typeof AuthenticatedReceptionPatientsRoute
   '/reception': typeof AuthenticatedReceptionIndexRoute
 }
@@ -59,19 +68,31 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth/staff': typeof AuthStaffRoute
+  '/_authenticated/reception/appointments': typeof AuthenticatedReceptionAppointmentsRoute
   '/_authenticated/reception/patients': typeof AuthenticatedReceptionPatientsRoute
   '/_authenticated/reception/': typeof AuthenticatedReceptionIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth/staff' | '/reception/patients' | '/reception/'
+  fullPaths:
+    | '/'
+    | '/auth/staff'
+    | '/reception/appointments'
+    | '/reception/patients'
+    | '/reception/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth/staff' | '/reception/patients' | '/reception'
+  to:
+    | '/'
+    | '/auth/staff'
+    | '/reception/appointments'
+    | '/reception/patients'
+    | '/reception'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth/staff'
+    | '/_authenticated/reception/appointments'
     | '/_authenticated/reception/patients'
     | '/_authenticated/reception/'
   fileRoutesById: FileRoutesById
@@ -112,6 +133,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedReceptionIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/reception/appointments': {
+      id: '/_authenticated/reception/appointments'
+      path: '/reception/appointments'
+      fullPath: '/reception/appointments'
+      preLoaderRoute: typeof AuthenticatedReceptionAppointmentsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/reception/patients': {
       id: '/_authenticated/reception/patients'
       path: '/reception/patients'
@@ -123,11 +151,14 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedReceptionAppointmentsRoute: typeof AuthenticatedReceptionAppointmentsRoute
   AuthenticatedReceptionPatientsRoute: typeof AuthenticatedReceptionPatientsRoute
   AuthenticatedReceptionIndexRoute: typeof AuthenticatedReceptionIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedReceptionAppointmentsRoute:
+    AuthenticatedReceptionAppointmentsRoute,
   AuthenticatedReceptionPatientsRoute: AuthenticatedReceptionPatientsRoute,
   AuthenticatedReceptionIndexRoute: AuthenticatedReceptionIndexRoute,
 }
