@@ -27,7 +27,11 @@ function InvoiceRow({ invoice }: { invoice: Invoice }) {
   const [price, setPrice] = useState(String(invoice.price ?? 0));
 
   const saveMutation = useMutation({
-    mutationFn: async (patch: Partial<Invoice>) => {
+    mutationFn: async (patch: {
+      service?: string | null;
+      price?: number;
+      payment_status?: "paid" | "unpaid";
+    }) => {
       const { error } = await supabase.from("invoices").update(patch).eq("id", invoice.id);
       if (error) throw error;
     },
