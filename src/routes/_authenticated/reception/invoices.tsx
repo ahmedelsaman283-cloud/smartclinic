@@ -7,7 +7,7 @@ import { AppShell, Card, EmptyState } from "@/components/app-shell";
 import { receptionNav } from "@/components/nav-items";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { Invoice } from "@/lib/clinic";
+import { formatDateTime, formatMoney, type Invoice } from "@/lib/clinic";
 
 export const Route = createFileRoute("/_authenticated/reception/invoices")({
   head: () => ({
@@ -24,7 +24,8 @@ export const Route = createFileRoute("/_authenticated/reception/invoices")({
 function InvoiceRow({ invoice }: { invoice: Invoice }) {
   const queryClient = useQueryClient();
   const [service, setService] = useState(invoice.service ?? "");
-  const [price, setPrice] = useState(String(invoice.price ?? 0));
+  const [price, setPrice] = useState(invoice.price == null ? "" : String(invoice.price));
+  const [error, setError] = useState<string | null>(null);
 
   const saveMutation = useMutation({
     mutationFn: async (patch: {
@@ -38,16 +39,45 @@ function InvoiceRow({ invoice }: { invoice: Invoice }) {
     onSuccess: () => {
       toast.success("تم تحديث الفاتورة");
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["accounts"] });
     },
     onError: () => toast.error("تعذر تحديث الفاتورة"),
   });
 
   const paid = invoice.payment_status === "paid";
 
+  function validate() {
+    if (!service.trim()) {
+      setError("يجب إدخال اسم الخدمة");
+      toast.error("يجب إدخال اسم الخدمة");
+      return false;
+    }
+    if (price.trim() === "" || Number.isNaN(Number(price)) || Number(price) <= 0) {
+      setError("يجب إدخال سعر صحيح أكبر من صفر");
+      toast.error("يجب إدخال سعر صحيح أكبر من صفر");
+      return false;
+    }
+    setError(null);
+    return true;
+  }
+
+  function handleSave() {
+    if (!validate()) return;
+    saveMutation.mutate({ service: service.trim(), price: Number(price) });
+  }
+
+  function handleMarkPaid() {
+    if (!validate()) return;
+    saveMutation.mutate({ service: service.trim(), price: Number(price), payment_status: "paid" });
+  }
+
   return (
     <Card className="space-y-3">
       <div className="flex items-center justify-between">
-        <p className="font-semibold">{invoice.patients?.full_name ?? "—"}</p>
+        <div>
+          <p className="font-semibold">{invoice.patients?.full_name ?? "—"}</p>
+          <p className="text-xs text-muted-foreground">{formatDateTime(invoice.created_at)}</p>
+        </div>
         <span
           className={`rounded-full px-3 py-1 text-xs font-medium ${
             paid ? "bg-accent text-accent-foreground" : "bg-secondary text-muted-foreground"
@@ -56,6 +86,8 @@ function InvoiceRow({ invoice }: { invoice: Invoice }) {
           {paid ? "مدفوعة" : "غير مدفوعة"}
         </span>
       </div>
+
+      <p className="text-sm font-semibold text-primary">{formatMoney(invoice.price)}</p>
 
       <div className="grid grid-cols-2 gap-2">
         <Input
@@ -68,24 +100,19 @@ function InvoiceRow({ invoice }: { invoice: Invoice }) {
           type="number"
           value={price}
           onChange={(e) => setPrice(e.target.value)}
-          placeholder="السعر"
+          placeholder="السعر (جنيه)"
           className="h-11 rounded-2xl"
         />
       </div>
 
+      {error ? <p className="text-xs font-medium text-destructive">{error}</p> : null}
+
       <div className="flex gap-2">
-        <Button
-          variant="outline"
-          className="h-10 flex-1 rounded-2xl"
-          onClick={() => saveMutation.mutate({ service: service || null, price: Number(price) || 0 })}
-        >
+        <Button variant="outline" className="h-10 flex-1 rounded-2xl" onClick={handleSave}>
           حفظ التعديلات
         </Button>
         {!paid ? (
-          <Button
-            className="h-10 flex-1 rounded-2xl"
-            onClick={() => saveMutation.mutate({ payment_status: "paid" })}
-          >
+          <Button className="h-10 flex-1 rounded-2xl" onClick={handleMarkPaid}>
             تحديد كمدفوعة
           </Button>
         ) : (
@@ -101,6 +128,7 @@ function InvoiceRow({ invoice }: { invoice: Invoice }) {
     </Card>
   );
 }
+
 
 function ReceptionInvoices() {
   const [filter, setFilter] = useState<"all" | "unpaid" | "paid">("all");
