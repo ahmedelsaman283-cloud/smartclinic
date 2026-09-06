@@ -48,6 +48,22 @@ function ReceptionHome() {
     },
   });
 
+  const appointmentIds = appointments.map((a) => a.id);
+
+  const { data: confirmedIds = [] } = useQuery({
+    queryKey: ["invoices", "today-appointments", appointmentIds],
+    enabled: appointmentIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("invoices")
+        .select("appointment_id")
+        .in("appointment_id", appointmentIds);
+      if (error) throw error;
+      return (data ?? []).map((row) => row.appointment_id as string);
+    },
+  });
+
+
   useEffect(() => {
     const channel = supabase
       .channel("reception-appointments")
