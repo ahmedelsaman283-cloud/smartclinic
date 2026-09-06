@@ -60,3 +60,21 @@ export function formatDate(date: string) {
     new Date(`${date}T00:00:00`),
   );
 }
+
+export const CURRENCY = "جنيه";
+
+export function formatMoney(amount: number | null | undefined) {
+  return `${Number(amount ?? 0).toLocaleString("ar-EG")} ${CURRENCY}`;
+}
+
+export function formatDateTime(value: string | null) {
+  if (!value) return "";
+  const d = new Date(value);
+  return new Intl.DateTimeFormat("ar-EG", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(d);
+}
