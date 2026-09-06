@@ -64,13 +64,18 @@ function PatientFile() {
   const history = appointments.filter((a) => a.id !== todayVisit?.id);
 
   useEffect(() => {
+    setDiagnosis(todayVisit?.diagnosis ?? "");
+    setTreatmentPlan(todayVisit?.treatment_plan ?? "");
     setNotes(todayVisit?.notes ?? "");
-  }, [todayVisit?.id, todayVisit?.notes]);
+  }, [todayVisit?.id, todayVisit?.diagnosis, todayVisit?.treatment_plan, todayVisit?.notes]);
 
   const saveNotes = useMutation({
     mutationFn: async () => {
       if (!todayVisit) throw new Error("no visit");
-      const { error } = await supabase.from("appointments").update({ notes }).eq("id", todayVisit.id);
+      const { error } = await supabase
+        .from("appointments")
+        .update({ diagnosis, treatment_plan: treatmentPlan, notes })
+        .eq("id", todayVisit.id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -79,6 +84,7 @@ function PatientFile() {
     },
     onError: () => toast.error("تعذر حفظ الملاحظات"),
   });
+
 
   return (
     <AppShell
