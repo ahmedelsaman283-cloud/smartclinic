@@ -25,6 +25,8 @@ export type Appointment = {
   status: AppointmentStatus;
   reason: string | null;
   notes: string | null;
+  diagnosis: string | null;
+  treatment_plan: string | null;
   created_at: string | null;
 };
 
