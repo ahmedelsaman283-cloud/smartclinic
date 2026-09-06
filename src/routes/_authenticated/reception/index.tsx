@@ -48,6 +48,22 @@ function ReceptionHome() {
     },
   });
 
+  const appointmentIds = appointments.map((a) => a.id);
+
+  const { data: confirmedIds = [] } = useQuery({
+    queryKey: ["invoices", "today-appointments", appointmentIds],
+    enabled: appointmentIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("invoices")
+        .select("appointment_id")
+        .in("appointment_id", appointmentIds);
+      if (error) throw error;
+      return (data ?? []).map((row) => row.appointment_id as string);
+    },
+  });
+
+
   useEffect(() => {
     const channel = supabase
       .channel("reception-appointments")
@@ -154,14 +170,20 @@ function ReceptionHome() {
                   ))}
                 </select>
               </div>
-              <Button
-                variant="secondary"
-                className="mt-3 h-10 w-full rounded-2xl"
-                disabled={arrivalMutation.isPending}
-                onClick={() => arrivalMutation.mutate(appointment)}
-              >
-                تأكيد الوصول
-              </Button>
+              {confirmedIds.includes(appointment.id) ? (
+                <Button variant="secondary" className="mt-3 h-10 w-full rounded-2xl" disabled>
+                  تم التأكيد ✅
+                </Button>
+              ) : (
+                <Button
+                  variant="secondary"
+                  className="mt-3 h-10 w-full rounded-2xl"
+                  disabled={arrivalMutation.isPending}
+                  onClick={() => arrivalMutation.mutate(appointment)}
+                >
+                  تأكيد الوصول
+                </Button>
+              )}
             </Card>
           ))}
         </div>
