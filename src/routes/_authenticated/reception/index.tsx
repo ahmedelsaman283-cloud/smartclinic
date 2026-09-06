@@ -170,14 +170,20 @@ function ReceptionHome() {
                   ))}
                 </select>
               </div>
-              <Button
-                variant="secondary"
-                className="mt-3 h-10 w-full rounded-2xl"
-                disabled={arrivalMutation.isPending}
-                onClick={() => arrivalMutation.mutate(appointment)}
-              >
-                تأكيد الوصول
-              </Button>
+              {confirmedIds.includes(appointment.id) ? (
+                <Button variant="secondary" className="mt-3 h-10 w-full rounded-2xl" disabled>
+                  تم التأكيد ✅
+                </Button>
+              ) : (
+                <Button
+                  variant="secondary"
+                  className="mt-3 h-10 w-full rounded-2xl"
+                  disabled={arrivalMutation.isPending}
+                  onClick={() => arrivalMutation.mutate(appointment)}
+                >
+                  تأكيد الوصول
+                </Button>
+              )}
             </Card>
           ))}
         </div>
