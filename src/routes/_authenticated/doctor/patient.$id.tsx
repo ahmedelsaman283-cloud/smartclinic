@@ -195,3 +195,12 @@ function PatientFile() {
     </AppShell>
   );
 }
+
+function VisitField({ label, value }: { label: string; value: string | null }) {
+  return (
+    <div>
+      <p className="text-xs font-semibold text-primary">{label}</p>
+      <p className="whitespace-pre-wrap text-sm">{value?.trim() ? value : "—"}</p>
+    </div>
+  );
+}
