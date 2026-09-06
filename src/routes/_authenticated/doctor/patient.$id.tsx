@@ -129,9 +129,11 @@ function PatientFile() {
                 {visit.reason ? (
                   <p className="mt-1 text-xs text-muted-foreground">سبب الزيارة: {visit.reason}</p>
                 ) : null}
-                <p className="mt-2 whitespace-pre-wrap text-sm">
-                  {visit.notes?.trim() ? visit.notes : "لا توجد ملاحظات"}
-                </p>
+                <div className="mt-3 space-y-3">
+                  <VisitField label="التشخيص" value={visit.diagnosis} />
+                  <VisitField label="الخطة العلاجية" value={visit.treatment_plan} />
+                  <VisitField label="ملاحظات إضافية" value={visit.notes} />
+                </div>
               </Card>
             </li>
           ))}
@@ -145,20 +147,46 @@ function PatientFile() {
             <p className="mb-2 text-xs text-muted-foreground">
               {formatTime(todayVisit.appointment_time)} · {STATUS_LABELS[todayVisit.status]}
             </p>
-            <Textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={6}
-              placeholder="اكتب تشخيص وملاحظات زيارة اليوم..."
-              className="rounded-2xl"
-            />
+            <div className="space-y-4">
+              <div>
+                <label className="mb-1 block text-sm font-semibold">التشخيص</label>
+                <Textarea
+                  value={diagnosis}
+                  onChange={(e) => setDiagnosis(e.target.value)}
+                  rows={4}
+                  placeholder="اكتب التشخيص الطبي..."
+                  className="rounded-2xl"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-semibold">الخطة العلاجية</label>
+                <Textarea
+                  value={treatmentPlan}
+                  onChange={(e) => setTreatmentPlan(e.target.value)}
+                  rows={4}
+                  placeholder="الأدوية والجرعات وتعليمات العلاج..."
+                  className="rounded-2xl"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-semibold">ملاحظات إضافية</label>
+                <Textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows={3}
+                  placeholder="أي ملاحظات أخرى..."
+                  className="rounded-2xl"
+                />
+              </div>
+            </div>
             <Button
-              className="mt-3 h-11 w-full rounded-2xl"
+              className="mt-4 h-11 w-full rounded-2xl"
               disabled={saveNotes.isPending}
               onClick={() => saveNotes.mutate()}
             >
               {saveNotes.isPending ? "جارٍ الحفظ..." : "حفظ الملاحظات"}
             </Button>
+
           </>
         ) : (
           <p className="text-sm text-muted-foreground">لا يوجد موعد لهذا المريض اليوم.</p>
