@@ -33,6 +33,8 @@ function PatientFile() {
   const { id } = Route.useParams();
   const queryClient = useQueryClient();
   const today = todayISO();
+  const [diagnosis, setDiagnosis] = useState("");
+  const [treatmentPlan, setTreatmentPlan] = useState("");
   const [notes, setNotes] = useState("");
 
   const { data: patient } = useQuery({
