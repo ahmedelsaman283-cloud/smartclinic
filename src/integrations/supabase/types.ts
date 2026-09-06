@@ -19,31 +19,37 @@ export type Database = {
           appointment_date: string
           appointment_time: string
           created_at: string | null
+          diagnosis: string | null
           id: string
           notes: string | null
           patient_id: string
           reason: string | null
           status: string
+          treatment_plan: string | null
         }
         Insert: {
           appointment_date: string
           appointment_time: string
           created_at?: string | null
+          diagnosis?: string | null
           id?: string
           notes?: string | null
           patient_id: string
           reason?: string | null
           status?: string
+          treatment_plan?: string | null
         }
         Update: {
           appointment_date?: string
           appointment_time?: string
           created_at?: string | null
+          diagnosis?: string | null
           id?: string
           notes?: string | null
           patient_id?: string
           reason?: string | null
           status?: string
+          treatment_plan?: string | null
         }
         Relationships: [
           {
