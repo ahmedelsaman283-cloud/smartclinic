@@ -1,4 +1,4 @@
-import { CalendarDays, Home, ListChecks, Receipt, Users, Wallet } from "lucide-react";
+import { CalendarDays, Home, ListChecks, Receipt, UsersRound, Users, Wallet } from "lucide-react";
 import type { NavItem } from "./app-shell";
 
 const iconClass = "h-5 w-5";
@@ -15,4 +15,5 @@ export const doctorNav: NavItem[] = [
   { to: "/doctor", label: "قائمة اليوم", icon: <ListChecks className={iconClass} /> },
   { to: "/doctor/patients", label: "المرضى", icon: <Users className={iconClass} /> },
   { to: "/doctor/accounts", label: "الحسابات", icon: <Wallet className={iconClass} /> },
+  { to: "/doctor/team", label: "الفريق", icon: <UsersRound className={iconClass} /> },
 ];
