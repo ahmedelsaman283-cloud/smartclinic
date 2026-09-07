@@ -186,18 +186,21 @@ export type Database = {
         Row: {
           clinic_id: string
           created_at: string | null
+          full_name: string | null
           id: string
           role: string
         }
         Insert: {
           clinic_id: string
           created_at?: string | null
+          full_name?: string | null
           id: string
           role: string
         }
         Update: {
           clinic_id?: string
           created_at?: string | null
+          full_name?: string | null
           id?: string
           role?: string
         }
