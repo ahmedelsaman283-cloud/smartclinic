@@ -3,6 +3,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { LogOut } from "lucide-react";
 import type { ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useClinic } from "@/hooks/use-clinic";
+
 
 export type NavItem = {
   to: string;
