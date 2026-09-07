@@ -20,10 +20,15 @@ export const Route = createFileRoute("/auth/staff")({
 });
 
 async function routeByRole(userId: string) {
-  const { data, error } = await supabase.from("profiles").select("role").eq("id", userId).maybeSingle();
-  if (error || !data) return null;
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("role, clinic_id")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error || !data || !data.clinic_id) return null;
   return data.role as "receptionist" | "doctor";
 }
+
 
 function StaffAuth() {
   const navigate = useNavigate();
