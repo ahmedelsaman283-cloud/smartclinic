@@ -33,14 +33,22 @@ export function AppShell({
     navigate({ to: "/auth/staff", replace: true });
   }
 
+  const { data: clinic } = useClinic();
+
   return (
     <div className="min-h-screen bg-secondary/40 pb-24">
       <header className="sticky top-0 z-20 border-b border-border/70 bg-background/90 backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3">
           <div>
+            {clinic ? (
+              <p className="mb-0.5 inline-flex items-center rounded-full bg-accent px-2 py-0.5 text-[11px] font-medium text-primary">
+                {clinic.name}
+              </p>
+            ) : null}
             <h1 className="text-lg font-bold text-foreground">{title}</h1>
             {subtitle ? <p className="text-xs text-muted-foreground">{subtitle}</p> : null}
           </div>
+
           <div className="flex items-center gap-2">
             {action}
             <button
