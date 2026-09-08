@@ -221,7 +221,77 @@ function PatientFile() {
         </ol>
       )}
 
+      <h2 className="mt-6 mb-3 px-1 text-sm font-semibold text-muted-foreground">المرفقات</h2>
+      <Card>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="application/pdf,image/*"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (!file) return;
+            if (file.size > 20 * 1024 * 1024) {
+              toast.error("حجم الملف أكبر من 20 ميجابايت");
+              return;
+            }
+            uploadFile.mutate(file);
+          }}
+        />
+        <Button
+          variant="outline"
+          className="h-11 w-full rounded-2xl border-dashed"
+          disabled={uploadFile.isPending || !clinic?.id}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <Upload className="me-2 h-4 w-4" />
+          {uploadFile.isPending ? "جارٍ الرفع..." : "رفع ملف (PDF أو صورة)"}
+        </Button>
+
+        {files.length === 0 ? (
+          <p className="mt-4 text-sm text-muted-foreground">لا توجد ملفات مرفقة</p>
+        ) : (
+          <ul className="mt-4 space-y-2">
+            {files.map((file) => (
+              <li
+                key={file.id}
+                className="flex items-center gap-3 rounded-2xl border border-border p-3"
+              >
+                {file.file_type === "image" ? (
+                  <ImageIcon className="h-5 w-5 shrink-0 text-primary" />
+                ) : (
+                  <FileText className="h-5 w-5 shrink-0 text-primary" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold">{file.file_name}</p>
+                  <p className="text-xs text-muted-foreground">{formatDateTime(file.created_at)}</p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="فتح الملف"
+                  onClick={() => openFile(file)}
+                >
+                  <Download className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="حذف الملف"
+                  disabled={deleteFile.isPending}
+                  onClick={() => deleteFile.mutate(file)}
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
       <h2 className="mt-6 mb-3 px-1 text-sm font-semibold text-muted-foreground">زيارة اليوم</h2>
+
       <Card>
         {todayVisit ? (
           <>
