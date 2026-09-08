@@ -48,7 +48,11 @@ function useRangeStats(range: RangeKey) {
       ]);
       if (invoicesRes.error) throw invoicesRes.error;
       if (appointmentsRes.error) throw appointmentsRes.error;
-      const revenue = (invoicesRes.data ?? []).reduce((sum, row) => sum + Number(row.price ?? 0), 0);
+      const revenue = (invoicesRes.data ?? []).reduce(
+        (sum, row) =>
+          sum + ((row.invoice_items ?? []) as { price: number | null }[]).reduce((s, i) => s + Number(i.price ?? 0), 0),
+        0,
+      );
       return { revenue, patients: appointmentsRes.count ?? 0 };
     },
   });
