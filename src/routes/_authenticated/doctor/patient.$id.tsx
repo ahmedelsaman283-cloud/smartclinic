@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Download, FileText, Image as ImageIcon, Trash2, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useClinic } from "@/hooks/use-clinic";
 import { AppShell, Card, EmptyState } from "@/components/app-shell";
 import { doctorNav } from "@/components/nav-items";
 import { Button } from "@/components/ui/button";
@@ -11,11 +12,21 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   STATUS_LABELS,
   formatDate,
+  formatDateTime,
   formatTime,
   todayISO,
   type Appointment,
   type Patient,
 } from "@/lib/clinic";
+
+type PatientFile = {
+  id: string;
+  file_name: string;
+  file_url: string;
+  file_type: string;
+  created_at: string;
+};
+
 
 export const Route = createFileRoute("/_authenticated/doctor/patient/$id")({
   head: () => ({
