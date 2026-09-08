@@ -92,6 +92,51 @@ export type Database = {
         }
         Relationships: []
       }
+      invoice_items: {
+        Row: {
+          clinic_id: string
+          created_at: string
+          id: string
+          invoice_id: string
+          price: number
+          service: string
+          updated_at: string
+        }
+        Insert: {
+          clinic_id?: string
+          created_at?: string
+          id?: string
+          invoice_id: string
+          price?: number
+          service: string
+          updated_at?: string
+        }
+        Update: {
+          clinic_id?: string
+          created_at?: string
+          id?: string
+          invoice_id?: string
+          price?: number
+          service?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_items_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: false
+            referencedRelation: "clinics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoices: {
         Row: {
           appointment_id: string | null
