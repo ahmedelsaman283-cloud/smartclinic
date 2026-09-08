@@ -32,6 +32,13 @@ export type Appointment = {
 
 export type AppointmentWithPatient = Appointment & { patients: Pick<Patient, "id" | "full_name" | "phone"> | null };
 
+export type InvoiceItem = {
+  id: string;
+  invoice_id: string;
+  service: string;
+  price: number;
+};
+
 export type Invoice = {
   id: string;
   patient_id: string;
@@ -41,7 +48,12 @@ export type Invoice = {
   payment_status: "paid" | "unpaid";
   created_at: string | null;
   patients?: Pick<Patient, "id" | "full_name"> | null;
+  invoice_items?: InvoiceItem[];
 };
+
+export function invoiceTotal(invoice: Pick<Invoice, "invoice_items">) {
+  return (invoice.invoice_items ?? []).reduce((sum, item) => sum + Number(item.price ?? 0), 0);
+}
 
 export function todayISO() {
   const now = new Date();
