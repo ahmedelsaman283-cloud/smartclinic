@@ -147,6 +147,61 @@ export type Database = {
           },
         ]
       }
+      patient_files: {
+        Row: {
+          clinic_id: string
+          created_at: string
+          file_name: string
+          file_type: string
+          file_url: string
+          id: string
+          patient_id: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          clinic_id?: string
+          created_at?: string
+          file_name: string
+          file_type?: string
+          file_url: string
+          id?: string
+          patient_id: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          clinic_id?: string
+          created_at?: string
+          file_name?: string
+          file_type?: string
+          file_url?: string
+          id?: string
+          patient_id?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patient_files_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: false
+            referencedRelation: "clinics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_files_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_files_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       patients: {
         Row: {
           clinic_id: string

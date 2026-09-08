@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Download, FileText, Image as ImageIcon, Trash2, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useClinic } from "@/hooks/use-clinic";
 import { AppShell, Card, EmptyState } from "@/components/app-shell";
 import { doctorNav } from "@/components/nav-items";
 import { Button } from "@/components/ui/button";
@@ -11,11 +12,21 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   STATUS_LABELS,
   formatDate,
+  formatDateTime,
   formatTime,
   todayISO,
   type Appointment,
   type Patient,
 } from "@/lib/clinic";
+
+type PatientFile = {
+  id: string;
+  file_name: string;
+  file_url: string;
+  file_type: string;
+  created_at: string;
+};
+
 
 export const Route = createFileRoute("/_authenticated/doctor/patient/$id")({
   head: () => ({
@@ -85,6 +96,76 @@ function PatientFile() {
     onError: () => toast.error("تعذر حفظ الملاحظات"),
   });
 
+  const { data: clinic } = useClinic();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { data: files = [] } = useQuery({
+    queryKey: ["patient-files", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("patient_files")
+        .select("id, file_name, file_url, file_type, created_at")
+        .eq("patient_id", id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as PatientFile[];
+    },
+  });
+
+  const uploadFile = useMutation({
+    mutationFn: async (file: File) => {
+      if (!clinic?.id) throw new Error("no clinic");
+      const { data: userData } = await supabase.auth.getUser();
+      const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+      const path = `${clinic.id}/${id}/${crypto.randomUUID()}${ext ? `.${ext}` : ""}`;
+      const { error: uploadError } = await supabase.storage
+        .from("patient-files")
+        .upload(path, file, { contentType: file.type || "application/octet-stream" });
+      if (uploadError) throw uploadError;
+      const { error } = await supabase.from("patient_files").insert({
+        patient_id: id,
+        clinic_id: clinic.id,
+        file_name: file.name,
+        file_url: path,
+        file_type: file.type.startsWith("image/") ? "image" : ext === "pdf" ? "pdf" : "file",
+        uploaded_by: userData.user?.id ?? null,
+      });
+      if (error) {
+        await supabase.storage.from("patient-files").remove([path]);
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      toast.success("تم رفع الملف");
+      queryClient.invalidateQueries({ queryKey: ["patient-files", id] });
+    },
+    onError: () => toast.error("تعذر رفع الملف"),
+  });
+
+  const deleteFile = useMutation({
+    mutationFn: async (file: PatientFile) => {
+      const { error } = await supabase.from("patient_files").delete().eq("id", file.id);
+      if (error) throw error;
+      await supabase.storage.from("patient-files").remove([file.file_url]);
+    },
+    onSuccess: () => {
+      toast.success("تم حذف الملف");
+      queryClient.invalidateQueries({ queryKey: ["patient-files", id] });
+    },
+    onError: () => toast.error("تعذر حذف الملف"),
+  });
+
+  async function openFile(file: PatientFile) {
+    const { data, error } = await supabase.storage
+      .from("patient-files")
+      .createSignedUrl(file.file_url, 60, { download: file.file_name });
+    if (error || !data?.signedUrl) {
+      toast.error("تعذر فتح الملف");
+      return;
+    }
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+  }
+
 
   return (
     <AppShell
@@ -140,7 +221,77 @@ function PatientFile() {
         </ol>
       )}
 
+      <h2 className="mt-6 mb-3 px-1 text-sm font-semibold text-muted-foreground">المرفقات</h2>
+      <Card>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="application/pdf,image/*"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (!file) return;
+            if (file.size > 20 * 1024 * 1024) {
+              toast.error("حجم الملف أكبر من 20 ميجابايت");
+              return;
+            }
+            uploadFile.mutate(file);
+          }}
+        />
+        <Button
+          variant="outline"
+          className="h-11 w-full rounded-2xl border-dashed"
+          disabled={uploadFile.isPending || !clinic?.id}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <Upload className="me-2 h-4 w-4" />
+          {uploadFile.isPending ? "جارٍ الرفع..." : "رفع ملف (PDF أو صورة)"}
+        </Button>
+
+        {files.length === 0 ? (
+          <p className="mt-4 text-sm text-muted-foreground">لا توجد ملفات مرفقة</p>
+        ) : (
+          <ul className="mt-4 space-y-2">
+            {files.map((file) => (
+              <li
+                key={file.id}
+                className="flex items-center gap-3 rounded-2xl border border-border p-3"
+              >
+                {file.file_type === "image" ? (
+                  <ImageIcon className="h-5 w-5 shrink-0 text-primary" />
+                ) : (
+                  <FileText className="h-5 w-5 shrink-0 text-primary" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold">{file.file_name}</p>
+                  <p className="text-xs text-muted-foreground">{formatDateTime(file.created_at)}</p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="فتح الملف"
+                  onClick={() => openFile(file)}
+                >
+                  <Download className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="حذف الملف"
+                  disabled={deleteFile.isPending}
+                  onClick={() => deleteFile.mutate(file)}
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
       <h2 className="mt-6 mb-3 px-1 text-sm font-semibold text-muted-foreground">زيارة اليوم</h2>
+
       <Card>
         {todayVisit ? (
           <>
