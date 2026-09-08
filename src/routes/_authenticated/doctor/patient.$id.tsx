@@ -167,6 +167,30 @@ function PatientFile() {
   }
 
 
+  const [downloading, setDownloading] = useState(false);
+
+  async function handleDownloadReport() {
+    if (!patient) return;
+    setDownloading(true);
+    try {
+      const { downloadPatientReport } = await import("@/lib/patient-report");
+      await downloadPatientReport({
+        clinicName: clinic?.name ?? "العيادة",
+        patient,
+        visits: [...appointments].sort((a, b) =>
+          `${a.appointment_date}${a.appointment_time}`.localeCompare(
+            `${b.appointment_date}${b.appointment_time}`,
+          ),
+        ),
+      });
+      toast.success("تم تحميل التقرير");
+    } catch {
+      toast.error("تعذر إنشاء التقرير");
+    } finally {
+      setDownloading(false);
+    }
+  }
+
   return (
     <AppShell
       title="ملف المريض"
@@ -181,6 +205,15 @@ function PatientFile() {
         </Link>
       }
     >
+      <Button
+        className="mb-4 h-11 w-full rounded-2xl"
+        disabled={downloading || !patient}
+        onClick={handleDownloadReport}
+      >
+        <Download className="me-2 h-4 w-4" />
+        {downloading ? "جارٍ إنشاء التقرير..." : "تحميل التقرير"}
+      </Button>
+
       <Card className="mb-5">
         <h2 className="mb-3 text-sm font-semibold text-muted-foreground">البيانات الأساسية</h2>
         <p className="text-xl font-bold">{patient?.full_name ?? "—"}</p>
