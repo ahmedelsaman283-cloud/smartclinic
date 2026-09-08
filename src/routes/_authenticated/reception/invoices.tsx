@@ -18,9 +18,15 @@ export const Route = createFileRoute("/_authenticated/reception/invoices")({
   head: () => ({
     meta: [
       { title: "الفواتير | استقبال العيادة الذكية" },
-      { name: "description", content: "متابعة فواتير المرضى مع خدمات متعددة لكل فاتورة وحالة الدفع." },
+      {
+        name: "description",
+        content: "متابعة فواتير المرضى مع خدمات متعددة لكل فاتورة وحالة الدفع.",
+      },
       { property: "og:title", content: "الفواتير | استقبال العيادة الذكية" },
-      { property: "og:description", content: "متابعة فواتير المرضى مع خدمات متعددة لكل فاتورة وحالة الدفع." },
+      {
+        property: "og:description",
+        content: "متابعة فواتير المرضى مع خدمات متعددة لكل فاتورة وحالة الدفع.",
+      },
     ],
   }),
   component: ReceptionInvoices,
@@ -41,7 +47,11 @@ const DATE_FILTER_LABELS: Record<DateFilterKey, string> = {
 function toDrafts(invoice: Invoice): LineDraft[] {
   const items = invoice.invoice_items ?? [];
   if (items.length === 0) return [{ id: null, service: "", price: "" }];
-  return items.map((item) => ({ id: item.id, service: item.service ?? "", price: String(item.price ?? "") }));
+  return items.map((item) => ({
+    id: item.id,
+    service: item.service ?? "",
+    price: String(item.price ?? ""),
+  }));
 }
 
 function rangeForFilter(filter: DateFilterKey, customFrom?: Date, customTo?: Date) {
@@ -116,7 +126,10 @@ function InvoiceRow({ invoice }: { invoice: Invoice }) {
         const { error } = await supabase
           .from("invoice_items")
           .delete()
-          .in("id", removed.map((item) => item.id));
+          .in(
+            "id",
+            removed.map((item) => item.id),
+          );
         if (error) throw error;
       }
       for (const line of lines) {
@@ -125,7 +138,9 @@ function InvoiceRow({ invoice }: { invoice: Invoice }) {
           const { error } = await supabase.from("invoice_items").update(payload).eq("id", line.id);
           if (error) throw error;
         } else {
-          const { error } = await supabase.from("invoice_items").insert({ ...payload, invoice_id: invoice.id });
+          const { error } = await supabase
+            .from("invoice_items")
+            .insert({ ...payload, invoice_id: invoice.id });
           if (error) throw error;
         }
       }
@@ -147,7 +162,10 @@ function InvoiceRow({ invoice }: { invoice: Invoice }) {
 
   const statusMutation = useMutation({
     mutationFn: async (status: "paid" | "unpaid") => {
-      const { error } = await supabase.from("invoices").update({ payment_status: status }).eq("id", invoice.id);
+      const { error } = await supabase
+        .from("invoices")
+        .update({ payment_status: status })
+        .eq("id", invoice.id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -237,7 +255,12 @@ function InvoiceRow({ invoice }: { invoice: Invoice }) {
         ))}
       </div>
 
-      <Button type="button" variant="outline" className="h-10 w-full rounded-2xl text-sm" onClick={addLine}>
+      <Button
+        type="button"
+        variant="outline"
+        className="h-10 w-full rounded-2xl text-sm"
+        onClick={addLine}
+      >
         <Plus className="ms-1 h-4 w-4" />
         إضافة خدمة
       </Button>
@@ -299,7 +322,9 @@ function ReceptionInvoices() {
         .limit(100);
       if (statusFilter !== "all") query = query.eq("payment_status", statusFilter);
       if (dateRange) {
-        query = query.gte("created_at", `${dateRange.from}T00:00:00`).lte("created_at", `${dateRange.to}T23:59:59.999`);
+        query = query
+          .gte("created_at", `${dateRange.from}T00:00:00`)
+          .lte("created_at", `${dateRange.to}T23:59:59.999`);
       }
       const { data, error } = await query;
       if (error) throw error;
