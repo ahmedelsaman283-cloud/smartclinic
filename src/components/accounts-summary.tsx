@@ -35,7 +35,7 @@ function useRangeStats(range: RangeKey) {
       const [invoicesRes, appointmentsRes] = await Promise.all([
         supabase
           .from("invoices")
-          .select("price, created_at")
+          .select("created_at, invoice_items(price)")
           .eq("payment_status", "paid")
           .gte("created_at", `${from}T00:00:00`)
           .lte("created_at", `${to}T23:59:59.999`),
