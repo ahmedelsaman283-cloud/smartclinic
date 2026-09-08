@@ -120,7 +120,7 @@ function PatientFile() {
       const path = `${clinic.id}/${id}/${crypto.randomUUID()}${ext ? `.${ext}` : ""}`;
       const { error: uploadError } = await supabase.storage
         .from("patient-files")
-        .upload(path, file, { contentType: file.type || undefined });
+        .upload(path, file, { contentType: file.type || "application/octet-stream" });
       if (uploadError) throw uploadError;
       const { error } = await supabase.from("patient_files").insert({
         patient_id: id,
