@@ -2,13 +2,17 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, Trash2 } from "lucide-react";
+import { CalendarIcon, Plus, Search, Trash2 } from "lucide-react";
+import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell, Card, EmptyState } from "@/components/app-shell";
 import { receptionNav } from "@/components/nav-items";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { formatDateTime, formatMoney, invoiceTotal, type Invoice } from "@/lib/clinic";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { formatDateTime, formatMoney, invoiceTotal, todayISO, type Invoice } from "@/lib/clinic";
 
 export const Route = createFileRoute("/_authenticated/reception/invoices")({
   head: () => ({
@@ -24,10 +28,76 @@ export const Route = createFileRoute("/_authenticated/reception/invoices")({
 
 type LineDraft = { id: string | null; service: string; price: string };
 
+type DateFilterKey = "today" | "week" | "month" | "all" | "custom";
+
+const DATE_FILTER_LABELS: Record<DateFilterKey, string> = {
+  today: "اليوم",
+  week: "هذا الأسبوع",
+  month: "هذا الشهر",
+  all: "الكل",
+  custom: "نطاق مخصص",
+};
+
 function toDrafts(invoice: Invoice): LineDraft[] {
   const items = invoice.invoice_items ?? [];
   if (items.length === 0) return [{ id: null, service: "", price: "" }];
   return items.map((item) => ({ id: item.id, service: item.service ?? "", price: String(item.price ?? "") }));
+}
+
+function rangeForFilter(filter: DateFilterKey, customFrom?: Date, customTo?: Date) {
+  if (filter === "all") return null;
+  if (filter === "custom") {
+    if (!customFrom || !customTo) return null;
+    return { from: format(customFrom, "yyyy-MM-dd"), to: format(customTo, "yyyy-MM-dd") };
+  }
+  const today = new Date(`${todayISO()}T00:00:00`);
+  let from = todayISO();
+  if (filter === "week") {
+    const day = today.getDay(); // 0 = Sunday
+    const diff = (day + 1) % 7; // week starts Saturday
+    today.setDate(today.getDate() - diff);
+    from = format(today, "yyyy-MM-dd");
+  } else if (filter === "month") {
+    today.setDate(1);
+    from = format(today, "yyyy-MM-dd");
+  }
+  return { from, to: todayISO() };
+}
+
+function DatePicker({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: Date | undefined;
+  onChange: (date: Date | undefined) => void;
+  placeholder: string;
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          className={cn(
+            "h-10 w-full justify-start rounded-2xl text-right font-normal",
+            !value && "text-muted-foreground",
+          )}
+        >
+          <CalendarIcon className="ms-2 h-4 w-4" />
+          {value ? format(value, "yyyy-MM-dd") : placeholder}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          mode="single"
+          selected={value}
+          onSelect={onChange}
+          initialFocus
+          className="p-3 pointer-events-auto"
+        />
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 function InvoiceRow({ invoice }: { invoice: Invoice }) {
@@ -211,47 +281,95 @@ function InvoiceRow({ invoice }: { invoice: Invoice }) {
 }
 
 function ReceptionInvoices() {
-  const [filter, setFilter] = useState<"all" | "unpaid" | "paid">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "unpaid" | "paid">("all");
+  const [dateFilter, setDateFilter] = useState<DateFilterKey>("today");
+  const [customFrom, setCustomFrom] = useState<Date | undefined>();
+  const [customTo, setCustomTo] = useState<Date | undefined>();
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const dateRange = rangeForFilter(dateFilter, customFrom, customTo);
 
   const { data: invoices = [] } = useQuery({
-    queryKey: ["invoices", filter],
+    queryKey: ["invoices", statusFilter, dateFilter, dateRange?.from, dateRange?.to],
     queryFn: async () => {
       let query = supabase
         .from("invoices")
         .select("*, patients(id, full_name), invoice_items(id, invoice_id, service, price)")
         .order("created_at", { ascending: false })
         .limit(100);
-      if (filter !== "all") query = query.eq("payment_status", filter);
+      if (statusFilter !== "all") query = query.eq("payment_status", statusFilter);
+      if (dateRange) {
+        query = query.gte("created_at", `${dateRange.from}T00:00:00`).lte("created_at", `${dateRange.to}T23:59:59.999`);
+      }
       const { data, error } = await query;
       if (error) throw error;
       return data as unknown as Invoice[];
     },
   });
 
-  const totalShown = invoices.reduce((sum, invoice) => sum + invoiceTotal(invoice), 0);
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const filteredInvoices = invoices.filter((invoice) => {
+    if (!normalizedSearch) return true;
+    const patientName = invoice.patients?.full_name ?? "";
+    return patientName.toLowerCase().includes(normalizedSearch);
+  });
+
+  const totalShown = filteredInvoices.reduce((sum, invoice) => sum + invoiceTotal(invoice), 0);
 
   return (
     <AppShell title="الفواتير" nav={receptionNav}>
-      <div className="mb-4 flex gap-2">
-        {(
-          [
-            ["all", "الكل"],
-            ["unpaid", "غير مدفوعة"],
-            ["paid", "مدفوعة"],
-          ] as const
-        ).map(([key, label]) => (
-          <Button
-            key={key}
-            variant={filter === key ? "default" : "outline"}
-            className="h-10 flex-1 rounded-2xl text-sm"
-            onClick={() => setFilter(key)}
-          >
-            {label}
-          </Button>
-        ))}
+      <div className="mb-4 space-y-3">
+        <div className="relative">
+          <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="البحث باسم المريض..."
+            className="h-11 rounded-2xl pe-4 ps-10"
+          />
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {(Object.keys(DATE_FILTER_LABELS) as DateFilterKey[]).map((key) => (
+            <Button
+              key={key}
+              variant={dateFilter === key ? "default" : "outline"}
+              className="h-10 flex-1 rounded-2xl text-sm"
+              onClick={() => setDateFilter(key)}
+            >
+              {DATE_FILTER_LABELS[key]}
+            </Button>
+          ))}
+        </div>
+
+        {dateFilter === "custom" ? (
+          <div className="grid grid-cols-2 gap-2">
+            <DatePicker value={customFrom} onChange={setCustomFrom} placeholder="من" />
+            <DatePicker value={customTo} onChange={setCustomTo} placeholder="إلى" />
+          </div>
+        ) : null}
+
+        <div className="flex gap-2">
+          {(
+            [
+              ["all", "الكل"],
+              ["unpaid", "غير مدفوعة"],
+              ["paid", "مدفوعة"],
+            ] as const
+          ).map(([key, label]) => (
+            <Button
+              key={key}
+              variant={statusFilter === key ? "default" : "outline"}
+              className="h-10 flex-1 rounded-2xl text-sm"
+              onClick={() => setStatusFilter(key)}
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
       </div>
 
-      {invoices.length === 0 ? (
+      {filteredInvoices.length === 0 ? (
         <EmptyState text="لا توجد فواتير" />
       ) : (
         <>
@@ -260,7 +378,7 @@ function ReceptionInvoices() {
             <span className="text-base font-bold text-primary">{formatMoney(totalShown)}</span>
           </Card>
           <div className="space-y-3">
-            {invoices.map((invoice) => (
+            {filteredInvoices.map((invoice) => (
               <InvoiceRow key={invoice.id} invoice={invoice} />
             ))}
           </div>
