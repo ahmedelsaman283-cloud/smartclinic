@@ -2,13 +2,17 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, Trash2 } from "lucide-react";
+import { CalendarIcon, Plus, Search, Trash2 } from "lucide-react";
+import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell, Card, EmptyState } from "@/components/app-shell";
 import { receptionNav } from "@/components/nav-items";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { formatDateTime, formatMoney, invoiceTotal, type Invoice } from "@/lib/clinic";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { formatDateTime, formatMoney, invoiceTotal, todayISO, type Invoice } from "@/lib/clinic";
 
 export const Route = createFileRoute("/_authenticated/reception/invoices")({
   head: () => ({
