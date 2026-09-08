@@ -96,6 +96,76 @@ function PatientFile() {
     onError: () => toast.error("تعذر حفظ الملاحظات"),
   });
 
+  const { data: clinic } = useClinic();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { data: files = [] } = useQuery({
+    queryKey: ["patient-files", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("patient_files")
+        .select("id, file_name, file_url, file_type, created_at")
+        .eq("patient_id", id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as PatientFile[];
+    },
+  });
+
+  const uploadFile = useMutation({
+    mutationFn: async (file: File) => {
+      if (!clinic?.id) throw new Error("no clinic");
+      const { data: userData } = await supabase.auth.getUser();
+      const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+      const path = `${clinic.id}/${id}/${crypto.randomUUID()}${ext ? `.${ext}` : ""}`;
+      const { error: uploadError } = await supabase.storage
+        .from("patient-files")
+        .upload(path, file, { contentType: file.type || undefined });
+      if (uploadError) throw uploadError;
+      const { error } = await supabase.from("patient_files").insert({
+        patient_id: id,
+        clinic_id: clinic.id,
+        file_name: file.name,
+        file_url: path,
+        file_type: file.type.startsWith("image/") ? "image" : ext === "pdf" ? "pdf" : "file",
+        uploaded_by: userData.user?.id ?? null,
+      });
+      if (error) {
+        await supabase.storage.from("patient-files").remove([path]);
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      toast.success("تم رفع الملف");
+      queryClient.invalidateQueries({ queryKey: ["patient-files", id] });
+    },
+    onError: () => toast.error("تعذر رفع الملف"),
+  });
+
+  const deleteFile = useMutation({
+    mutationFn: async (file: PatientFile) => {
+      const { error } = await supabase.from("patient_files").delete().eq("id", file.id);
+      if (error) throw error;
+      await supabase.storage.from("patient-files").remove([file.file_url]);
+    },
+    onSuccess: () => {
+      toast.success("تم حذف الملف");
+      queryClient.invalidateQueries({ queryKey: ["patient-files", id] });
+    },
+    onError: () => toast.error("تعذر حذف الملف"),
+  });
+
+  async function openFile(file: PatientFile) {
+    const { data, error } = await supabase.storage
+      .from("patient-files")
+      .createSignedUrl(file.file_url, 60, { download: file.file_name });
+    if (error || !data?.signedUrl) {
+      toast.error("تعذر فتح الملف");
+      return;
+    }
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+  }
+
 
   return (
     <AppShell
