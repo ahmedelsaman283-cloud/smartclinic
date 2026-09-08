@@ -2,39 +2,70 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { Plus, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell, Card, EmptyState } from "@/components/app-shell";
 import { receptionNav } from "@/components/nav-items";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { formatDateTime, formatMoney, type Invoice } from "@/lib/clinic";
+import { formatDateTime, formatMoney, invoiceTotal, type Invoice } from "@/lib/clinic";
 
 export const Route = createFileRoute("/_authenticated/reception/invoices")({
   head: () => ({
     meta: [
       { title: "الفواتير | استقبال العيادة الذكية" },
-      { name: "description", content: "متابعة فواتير المرضى وتحديث الخدمة والسعر وحالة الدفع." },
+      { name: "description", content: "متابعة فواتير المرضى مع خدمات متعددة لكل فاتورة وحالة الدفع." },
       { property: "og:title", content: "الفواتير | استقبال العيادة الذكية" },
-      { property: "og:description", content: "متابعة فواتير المرضى وتحديث الخدمة والسعر وحالة الدفع." },
+      { property: "og:description", content: "متابعة فواتير المرضى مع خدمات متعددة لكل فاتورة وحالة الدفع." },
     ],
   }),
   component: ReceptionInvoices,
 });
 
+type LineDraft = { id: string | null; service: string; price: string };
+
+function toDrafts(invoice: Invoice): LineDraft[] {
+  const items = invoice.invoice_items ?? [];
+  if (items.length === 0) return [{ id: null, service: "", price: "" }];
+  return items.map((item) => ({ id: item.id, service: item.service ?? "", price: String(item.price ?? "") }));
+}
+
 function InvoiceRow({ invoice }: { invoice: Invoice }) {
   const queryClient = useQueryClient();
-  const [service, setService] = useState(invoice.service ?? "");
-  const [price, setPrice] = useState(invoice.price == null ? "" : String(invoice.price));
+  const [lines, setLines] = useState<LineDraft[]>(() => toDrafts(invoice));
   const [error, setError] = useState<string | null>(null);
 
+  const total = lines.reduce((sum, line) => sum + (Number(line.price) || 0), 0);
+  const paid = invoice.payment_status === "paid";
+
   const saveMutation = useMutation({
-    mutationFn: async (patch: {
-      service?: string | null;
-      price?: number;
-      payment_status?: "paid" | "unpaid";
-    }) => {
-      const { error } = await supabase.from("invoices").update(patch).eq("id", invoice.id);
-      if (error) throw error;
+    mutationFn: async (opts: { markPaid?: boolean } = {}) => {
+      const keepIds = lines.map((l) => l.id).filter(Boolean) as string[];
+      const removed = (invoice.invoice_items ?? []).filter((item) => !keepIds.includes(item.id));
+      if (removed.length > 0) {
+        const { error } = await supabase
+          .from("invoice_items")
+          .delete()
+          .in("id", removed.map((item) => item.id));
+        if (error) throw error;
+      }
+      for (const line of lines) {
+        const payload = { service: line.service.trim(), price: Number(line.price) };
+        if (line.id) {
+          const { error } = await supabase.from("invoice_items").update(payload).eq("id", line.id);
+          if (error) throw error;
+        } else {
+          const { error } = await supabase.from("invoice_items").insert({ ...payload, invoice_id: invoice.id });
+          if (error) throw error;
+        }
+      }
+      if (opts.markPaid) {
+        const { error } = await supabase
+          .from("invoices")
+          .update({ payment_status: "paid" })
+          .eq("id", invoice.id);
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       toast.success("تم تحديث الفاتورة");
@@ -44,31 +75,50 @@ function InvoiceRow({ invoice }: { invoice: Invoice }) {
     onError: () => toast.error("تعذر تحديث الفاتورة"),
   });
 
-  const paid = invoice.payment_status === "paid";
+  const statusMutation = useMutation({
+    mutationFn: async (status: "paid" | "unpaid") => {
+      const { error } = await supabase.from("invoices").update({ payment_status: status }).eq("id", invoice.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+    },
+    onError: () => toast.error("تعذر تحديث الفاتورة"),
+  });
+
+  function updateLine(index: number, patch: Partial<LineDraft>) {
+    setLines((prev) => prev.map((line, i) => (i === index ? { ...line, ...patch } : line)));
+  }
+
+  function addLine() {
+    setLines((prev) => [...prev, { id: null, service: "", price: "" }]);
+  }
+
+  function removeLine(index: number) {
+    setLines((prev) => (prev.length === 1 ? prev : prev.filter((_, i) => i !== index)));
+  }
 
   function validate() {
-    if (!service.trim()) {
-      setError("يجب إدخال اسم الخدمة");
-      toast.error("يجب إدخال اسم الخدمة");
+    if (lines.length === 0) {
+      setError("يجب إضافة خدمة واحدة على الأقل");
+      toast.error("يجب إضافة خدمة واحدة على الأقل");
       return false;
     }
-    if (price.trim() === "" || Number.isNaN(Number(price)) || Number(price) <= 0) {
-      setError("يجب إدخال سعر صحيح أكبر من صفر");
-      toast.error("يجب إدخال سعر صحيح أكبر من صفر");
-      return false;
+    for (const line of lines) {
+      if (!line.service.trim()) {
+        setError("يجب إدخال اسم الخدمة لكل بند");
+        toast.error("يجب إدخال اسم الخدمة لكل بند");
+        return false;
+      }
+      if (line.price.trim() === "" || Number.isNaN(Number(line.price)) || Number(line.price) <= 0) {
+        setError("يجب إدخال سعر صحيح أكبر من صفر لكل بند");
+        toast.error("يجب إدخال سعر صحيح أكبر من صفر لكل بند");
+        return false;
+      }
     }
     setError(null);
     return true;
-  }
-
-  function handleSave() {
-    if (!validate()) return;
-    saveMutation.mutate({ service: service.trim(), price: Number(price) });
-  }
-
-  function handleMarkPaid() {
-    if (!validate()) return;
-    saveMutation.mutate({ service: service.trim(), price: Number(price), payment_status: "paid" });
   }
 
   return (
@@ -87,39 +137,70 @@ function InvoiceRow({ invoice }: { invoice: Invoice }) {
         </span>
       </div>
 
-      <p className="text-sm font-semibold text-primary">{formatMoney(invoice.price)}</p>
+      <div className="space-y-2">
+        {lines.map((line, index) => (
+          <div key={line.id ?? `new-${index}`} className="flex gap-2">
+            <Input
+              value={line.service}
+              onChange={(e) => updateLine(index, { service: e.target.value })}
+              placeholder="الخدمة"
+              className="h-11 flex-1 rounded-2xl"
+            />
+            <Input
+              type="number"
+              value={line.price}
+              onChange={(e) => updateLine(index, { price: e.target.value })}
+              placeholder="السعر (جنيه)"
+              className="h-11 w-28 rounded-2xl"
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label="حذف الخدمة"
+              className="h-11 w-11 shrink-0 rounded-2xl text-destructive"
+              onClick={() => removeLine(index)}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        ))}
+      </div>
 
-      <div className="grid grid-cols-2 gap-2">
-        <Input
-          value={service}
-          onChange={(e) => setService(e.target.value)}
-          placeholder="الخدمة"
-          className="h-11 rounded-2xl"
-        />
-        <Input
-          type="number"
-          value={price}
-          onChange={(e) => setPrice(e.target.value)}
-          placeholder="السعر (جنيه)"
-          className="h-11 rounded-2xl"
-        />
+      <Button type="button" variant="outline" className="h-10 w-full rounded-2xl text-sm" onClick={addLine}>
+        <Plus className="ms-1 h-4 w-4" />
+        إضافة خدمة
+      </Button>
+
+      <div className="flex items-center justify-between rounded-2xl bg-secondary/60 px-4 py-3">
+        <span className="text-sm text-muted-foreground">الإجمالي</span>
+        <span className="text-base font-bold text-primary">{formatMoney(total)}</span>
       </div>
 
       {error ? <p className="text-xs font-medium text-destructive">{error}</p> : null}
 
       <div className="flex gap-2">
-        <Button variant="outline" className="h-10 flex-1 rounded-2xl" onClick={handleSave}>
+        <Button
+          variant="outline"
+          className="h-10 flex-1 rounded-2xl"
+          disabled={saveMutation.isPending}
+          onClick={() => validate() && saveMutation.mutate({})}
+        >
           حفظ التعديلات
         </Button>
         {!paid ? (
-          <Button className="h-10 flex-1 rounded-2xl" onClick={handleMarkPaid}>
+          <Button
+            className="h-10 flex-1 rounded-2xl"
+            disabled={saveMutation.isPending}
+            onClick={() => validate() && saveMutation.mutate({ markPaid: true })}
+          >
             تحديد كمدفوعة
           </Button>
         ) : (
           <Button
             variant="ghost"
             className="h-10 flex-1 rounded-2xl"
-            onClick={() => saveMutation.mutate({ payment_status: "unpaid" })}
+            onClick={() => statusMutation.mutate("unpaid")}
           >
             إلغاء الدفع
           </Button>
@@ -129,7 +210,6 @@ function InvoiceRow({ invoice }: { invoice: Invoice }) {
   );
 }
 
-
 function ReceptionInvoices() {
   const [filter, setFilter] = useState<"all" | "unpaid" | "paid">("all");
 
@@ -138,7 +218,7 @@ function ReceptionInvoices() {
     queryFn: async () => {
       let query = supabase
         .from("invoices")
-        .select("*, patients(id, full_name)")
+        .select("*, patients(id, full_name), invoice_items(id, invoice_id, service, price)")
         .order("created_at", { ascending: false })
         .limit(100);
       if (filter !== "all") query = query.eq("payment_status", filter);
@@ -147,6 +227,8 @@ function ReceptionInvoices() {
       return data as unknown as Invoice[];
     },
   });
+
+  const totalShown = invoices.reduce((sum, invoice) => sum + invoiceTotal(invoice), 0);
 
   return (
     <AppShell title="الفواتير" nav={receptionNav}>
@@ -172,11 +254,17 @@ function ReceptionInvoices() {
       {invoices.length === 0 ? (
         <EmptyState text="لا توجد فواتير" />
       ) : (
-        <div className="space-y-3">
-          {invoices.map((invoice) => (
-            <InvoiceRow key={invoice.id} invoice={invoice} />
-          ))}
-        </div>
+        <>
+          <Card className="mb-3 flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">إجمالي الفواتير المعروضة</span>
+            <span className="text-base font-bold text-primary">{formatMoney(totalShown)}</span>
+          </Card>
+          <div className="space-y-3">
+            {invoices.map((invoice) => (
+              <InvoiceRow key={invoice.id} invoice={invoice} />
+            ))}
+          </div>
+        </>
       )}
     </AppShell>
   );
