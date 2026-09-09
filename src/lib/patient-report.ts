@@ -20,7 +20,37 @@ function field(label: string, value: string | null) {
     </div>`;
 }
 
-function buildHtml(clinicName: string, patient: Patient, visits: Appointment[]) {
+export type ReportAttachment = {
+  file_name: string;
+  file_type: string;
+  url: string;
+};
+
+function attachmentsSection(attachments: ReportAttachment[]) {
+  if (!attachments.length) {
+    return `<div style="font-size:13px;color:#9ca3af">لا توجد ملفات مرفقة</div>`;
+  }
+  return attachments
+    .map((a) => {
+      const isImage = a.file_type === "image";
+      const preview = isImage
+        ? `<img src="${escapeHtml(a.url)}" crossorigin="anonymous" style="margin-top:10px;max-width:100%;max-height:420px;border-radius:10px;border:1px solid #e5e7eb"/>`
+        : "";
+      return `<div style="border:1px solid #e5e7eb;border-radius:14px;padding:14px;margin-bottom:12px">
+          <div style="font-size:14px;font-weight:700;color:#111827">${escapeHtml(a.file_name)}</div>
+          <div style="font-size:11px;color:#2563eb;margin-top:4px;word-break:break-all"><a href="${escapeHtml(a.url)}" style="color:#2563eb;text-decoration:underline">${escapeHtml(a.url)}</a></div>
+          ${preview}
+        </div>`;
+    })
+    .join("");
+}
+
+function buildHtml(
+  clinicName: string,
+  patient: Patient,
+  visits: Appointment[],
+  attachments: ReportAttachment[],
+) {
   const generatedAt = new Intl.DateTimeFormat("ar-EG", {
     day: "numeric",
     month: "long",
