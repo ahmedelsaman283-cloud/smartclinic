@@ -174,9 +174,23 @@ function PatientFile() {
     setDownloading(true);
     try {
       const { downloadPatientReport } = await import("@/lib/patient-report");
+
+      const attachments = (
+        await Promise.all(
+          files.map(async (file) => {
+            const { data } = await supabase.storage
+              .from("patient-files")
+              .createSignedUrl(file.file_url, 60 * 60 * 24 * 7);
+            if (!data?.signedUrl) return null;
+            return { file_name: file.file_name, file_type: file.file_type, url: data.signedUrl };
+          }),
+        )
+      ).filter((a): a is { file_name: string; file_type: string; url: string } => a !== null);
+
       await downloadPatientReport({
         clinicName: clinic?.name ?? "العيادة",
         patient,
+        attachments,
         visits: [...appointments].sort((a, b) =>
           `${a.appointment_date}${a.appointment_time}`.localeCompare(
             `${b.appointment_date}${b.appointment_time}`,
