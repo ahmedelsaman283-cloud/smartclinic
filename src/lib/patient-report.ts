@@ -88,6 +88,9 @@ function buildHtml(
 
       <div style="font-size:16px;font-weight:800;margin-bottom:12px">سجل الزيارات</div>
       ${visitsHtml}
+
+      <div style="font-size:16px;font-weight:800;margin:24px 0 12px">المرفقات</div>
+      ${attachmentsSection(attachments)}
     </div>`;
 }
 
@@ -95,6 +98,7 @@ export async function downloadPatientReport(options: {
   clinicName: string;
   patient: Patient;
   visits: Appointment[];
+  attachments?: ReportAttachment[];
 }) {
   const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
     import("html2canvas-pro"),
@@ -103,8 +107,32 @@ export async function downloadPatientReport(options: {
 
   const host = document.createElement("div");
   host.style.cssText = "position:fixed;top:0;left:-10000px;z-index:-1;background:#ffffff";
-  host.innerHTML = buildHtml(options.clinicName, options.patient, options.visits);
+  host.innerHTML = buildHtml(
+    options.clinicName,
+    options.patient,
+    options.visits,
+    options.attachments ?? [],
+  );
   document.body.appendChild(host);
+
+  await Promise.all(
+    Array.from(host.querySelectorAll("img")).map(
+      (img) =>
+        new Promise<void>((resolve) => {
+          if (img.complete) return resolve();
+          img.addEventListener("load", () => resolve(), { once: true });
+          img.addEventListener(
+            "error",
+            () => {
+              img.remove();
+              resolve();
+            },
+            { once: true },
+          );
+          setTimeout(resolve, 8000);
+        }),
+    ),
+  );
 
   try {
     const canvas = await html2canvas(host.firstElementChild as HTMLElement, {
