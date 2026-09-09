@@ -20,7 +20,37 @@ function field(label: string, value: string | null) {
     </div>`;
 }
 
-function buildHtml(clinicName: string, patient: Patient, visits: Appointment[]) {
+export type ReportAttachment = {
+  file_name: string;
+  file_type: string;
+  url: string;
+};
+
+function attachmentsSection(attachments: ReportAttachment[]) {
+  if (!attachments.length) {
+    return `<div style="font-size:13px;color:#9ca3af">لا توجد ملفات مرفقة</div>`;
+  }
+  return attachments
+    .map((a) => {
+      const isImage = a.file_type === "image";
+      const preview = isImage
+        ? `<img src="${escapeHtml(a.url)}" crossorigin="anonymous" style="margin-top:10px;max-width:100%;max-height:420px;border-radius:10px;border:1px solid #e5e7eb"/>`
+        : "";
+      return `<div style="border:1px solid #e5e7eb;border-radius:14px;padding:14px;margin-bottom:12px">
+          <div style="font-size:14px;font-weight:700;color:#111827">${escapeHtml(a.file_name)}</div>
+          <div style="font-size:11px;color:#2563eb;margin-top:4px;word-break:break-all"><a href="${escapeHtml(a.url)}" style="color:#2563eb;text-decoration:underline">${escapeHtml(a.url)}</a></div>
+          ${preview}
+        </div>`;
+    })
+    .join("");
+}
+
+function buildHtml(
+  clinicName: string,
+  patient: Patient,
+  visits: Appointment[],
+  attachments: ReportAttachment[],
+) {
   const generatedAt = new Intl.DateTimeFormat("ar-EG", {
     day: "numeric",
     month: "long",
@@ -30,7 +60,9 @@ function buildHtml(clinicName: string, patient: Patient, visits: Appointment[]) 
   const visitsHtml = visits.length
     ? visits
         .map(
-          (v) => `<div style="border:1px solid #e5e7eb;border-radius:14px;padding:14px;margin-bottom:12px">
+          (
+            v,
+          ) => `<div style="border:1px solid #e5e7eb;border-radius:14px;padding:14px;margin-bottom:12px">
             <div style="display:flex;justify-content:space-between;align-items:center">
               <div style="font-size:14px;font-weight:700;color:#111827">${escapeHtml(formatDate(v.appointment_date))}</div>
               <div style="font-size:12px;color:#6b7280">${escapeHtml(formatTime(v.appointment_time))}</div>
@@ -58,6 +90,9 @@ function buildHtml(clinicName: string, patient: Patient, visits: Appointment[]) 
 
       <div style="font-size:16px;font-weight:800;margin-bottom:12px">سجل الزيارات</div>
       ${visitsHtml}
+
+      <div style="font-size:16px;font-weight:800;margin:24px 0 12px">المرفقات</div>
+      ${attachmentsSection(attachments)}
     </div>`;
 }
 
@@ -65,6 +100,7 @@ export async function downloadPatientReport(options: {
   clinicName: string;
   patient: Patient;
   visits: Appointment[];
+  attachments?: ReportAttachment[];
 }) {
   const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
     import("html2canvas-pro"),
@@ -73,8 +109,32 @@ export async function downloadPatientReport(options: {
 
   const host = document.createElement("div");
   host.style.cssText = "position:fixed;top:0;left:-10000px;z-index:-1;background:#ffffff";
-  host.innerHTML = buildHtml(options.clinicName, options.patient, options.visits);
+  host.innerHTML = buildHtml(
+    options.clinicName,
+    options.patient,
+    options.visits,
+    options.attachments ?? [],
+  );
   document.body.appendChild(host);
+
+  await Promise.all(
+    Array.from(host.querySelectorAll("img")).map(
+      (img) =>
+        new Promise<void>((resolve) => {
+          if (img.complete) return resolve();
+          img.addEventListener("load", () => resolve(), { once: true });
+          img.addEventListener(
+            "error",
+            () => {
+              img.remove();
+              resolve();
+            },
+            { once: true },
+          );
+          setTimeout(resolve, 8000);
+        }),
+    ),
+  );
 
   try {
     const canvas = await html2canvas(host.firstElementChild as HTMLElement, {
@@ -115,7 +175,10 @@ export async function downloadPatientReport(options: {
     }
 
     const today = new Date().toISOString().slice(0, 10);
-    const safeName = options.patient.full_name.trim().replace(/[\\/:*?"<>|]/g, "").replace(/\s+/g, "-");
+    const safeName = options.patient.full_name
+      .trim()
+      .replace(/[\\/:*?"<>|]/g, "")
+      .replace(/\s+/g, "-");
     pdf.save(`تقرير-${safeName}-${today}.pdf`);
   } finally {
     host.remove();
