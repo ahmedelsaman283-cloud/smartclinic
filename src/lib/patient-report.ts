@@ -60,7 +60,9 @@ function buildHtml(
   const visitsHtml = visits.length
     ? visits
         .map(
-          (v) => `<div style="border:1px solid #e5e7eb;border-radius:14px;padding:14px;margin-bottom:12px">
+          (
+            v,
+          ) => `<div style="border:1px solid #e5e7eb;border-radius:14px;padding:14px;margin-bottom:12px">
             <div style="display:flex;justify-content:space-between;align-items:center">
               <div style="font-size:14px;font-weight:700;color:#111827">${escapeHtml(formatDate(v.appointment_date))}</div>
               <div style="font-size:12px;color:#6b7280">${escapeHtml(formatTime(v.appointment_time))}</div>
@@ -173,7 +175,10 @@ export async function downloadPatientReport(options: {
     }
 
     const today = new Date().toISOString().slice(0, 10);
-    const safeName = options.patient.full_name.trim().replace(/[\\/:*?"<>|]/g, "").replace(/\s+/g, "-");
+    const safeName = options.patient.full_name
+      .trim()
+      .replace(/[\\/:*?"<>|]/g, "")
+      .replace(/\s+/g, "-");
     pdf.save(`تقرير-${safeName}-${today}.pdf`);
   } finally {
     host.remove();

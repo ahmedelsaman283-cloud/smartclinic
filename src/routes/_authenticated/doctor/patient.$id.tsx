@@ -27,7 +27,6 @@ type PatientFile = {
   created_at: string;
 };
 
-
 export const Route = createFileRoute("/_authenticated/doctor/patient/$id")({
   head: () => ({
     meta: [
@@ -51,7 +50,11 @@ function PatientFile() {
   const { data: patient } = useQuery({
     queryKey: ["patients", id],
     queryFn: async () => {
-      const { data, error } = await supabase.from("patients").select("*").eq("id", id).maybeSingle();
+      const { data, error } = await supabase
+        .from("patients")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle();
       if (error) throw error;
       return data as Patient | null;
     },
@@ -165,7 +168,6 @@ function PatientFile() {
     }
     window.open(data.signedUrl, "_blank", "noopener,noreferrer");
   }
-
 
   const [downloading, setDownloading] = useState(false);
 
@@ -384,7 +386,6 @@ function PatientFile() {
             >
               {saveNotes.isPending ? "جارٍ الحفظ..." : "حفظ الملاحظات"}
             </Button>
-
           </>
         ) : (
           <p className="text-sm text-muted-foreground">لا يوجد موعد لهذا المريض اليوم.</p>
