@@ -20,10 +20,7 @@ export const Route = createFileRoute("/_authenticated/reception/accounts")({
 function ReceptionAccounts() {
   return (
     <AppShell title="الحسابات" subtitle={formatDate(todayISO())} nav={receptionNav}>
-      <div className="space-y-5">
-        <AccountsOverview ranges={["today"]} />
-        <OperationalDashboard />
-      </div>
+      <AccountsOverview ranges={["today"]} />
     </AppShell>
   );
 }
