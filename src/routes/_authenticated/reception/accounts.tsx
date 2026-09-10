@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/app-shell";
 import { receptionNav } from "@/components/nav-items";
 import { RangeCard } from "@/components/accounts-summary";
+import { OperationalDashboard } from "@/components/operational-dashboard";
 import { formatDate, todayISO } from "@/lib/clinic";
 
 export const Route = createFileRoute("/_authenticated/reception/accounts")({
@@ -19,7 +20,10 @@ export const Route = createFileRoute("/_authenticated/reception/accounts")({
 function ReceptionAccounts() {
   return (
     <AppShell title="الحسابات" subtitle={formatDate(todayISO())} nav={receptionNav}>
-      <RangeCard range="today" />
+      <div className="space-y-3">
+        <RangeCard range="today" />
+        <OperationalDashboard />
+      </div>
     </AppShell>
   );
 }

@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/app-shell";
 import { doctorNav } from "@/components/nav-items";
 import { RangeCard } from "@/components/accounts-summary";
+import { OperationalDashboard } from "@/components/operational-dashboard";
 import { formatDate, todayISO } from "@/lib/clinic";
 
 export const Route = createFileRoute("/_authenticated/doctor/accounts")({
@@ -23,6 +24,7 @@ function DoctorAccounts() {
         <RangeCard range="today" />
         <RangeCard range="week" />
         <RangeCard range="month" />
+        <OperationalDashboard />
       </div>
     </AppShell>
   );
