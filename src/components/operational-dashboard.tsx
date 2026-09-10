@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Activity, CalendarCheck2, ChartNoAxesCombined, CircleDollarSign, Stethoscope, UserPlus } from "lucide-react";
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/app-shell";
 import { formatMoney, todayISO } from "@/lib/clinic";
@@ -123,11 +124,14 @@ function useOperationalStats() {
   });
 }
 
-function Stat({ label, value }: { label: string; value: string | number }) {
+function Stat({ label, value, icon: Icon }: { label: string; value: string | number; icon?: typeof Activity }) {
   return (
-    <div className="rounded-2xl bg-secondary/60 p-3 text-center">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 text-lg font-bold text-primary">{value}</p>
+    <div className="min-w-0 rounded-2xl border border-border/50 bg-secondary/45 p-4">
+      <div className="flex items-center gap-2 text-muted-foreground">
+        {Icon ? <Icon className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" /> : null}
+        <p className="text-xs font-medium">{label}</p>
+      </div>
+      <p className="mt-3 break-words text-xl font-extrabold text-foreground">{value}</p>
     </div>
   );
 }
@@ -137,19 +141,33 @@ export function OperationalDashboard() {
   const dash = isLoading ? "..." : undefined;
 
   return (
-    <div className="space-y-3">
-      <Card className="space-y-3">
-        <p className="text-sm font-semibold text-muted-foreground">لوحة التشغيل — هذا الشهر</p>
+    <section className="space-y-5" aria-labelledby="operations-title">
+      <div className="flex items-end justify-between gap-3 px-1 pt-1">
+        <div>
+          <h2 id="operations-title" className="text-lg font-bold text-foreground">مؤشرات التشغيل</h2>
+          <p className="mt-1 text-xs text-muted-foreground">أداء العيادة خلال الفترة الحالية</p>
+        </div>
+        <ChartNoAxesCombined className="h-5 w-5 text-primary" aria-hidden="true" />
+      </div>
+
+      <Card className="space-y-4 p-5 sm:p-6">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm font-bold text-foreground">ملخص هذا الشهر</p>
+          <span className="text-xs text-muted-foreground">حتى اليوم</span>
+        </div>
         <div className="grid grid-cols-2 gap-3">
-          <Stat label="مرضى جدد" value={dash ?? data?.newPatients ?? 0} />
-          <Stat label="إيرادات مدفوعة" value={dash ?? formatMoney(data?.revenue ?? 0)} />
-          <Stat label="نسبة عدم الحضور" value={dash ?? `${data?.noShowRate ?? 0}%`} />
-          <Stat label="حالات لم تحضر" value={dash ?? data?.noShow ?? 0} />
+          <Stat label="مرضى جدد" value={dash ?? data?.newPatients ?? 0} icon={UserPlus} />
+          <Stat label="إيرادات مدفوعة" value={dash ?? formatMoney(data?.revenue ?? 0)} icon={CircleDollarSign} />
+          <Stat label="نسبة عدم الحضور" value={dash ?? `${data?.noShowRate ?? 0}%`} icon={Activity} />
+          <Stat label="حالات لم تحضر" value={dash ?? data?.noShow ?? 0} icon={CalendarCheck2} />
         </div>
       </Card>
 
-      <Card className="space-y-3">
-        <p className="text-sm font-semibold text-muted-foreground">مواعيد هذا الأسبوع</p>
+      <Card className="space-y-4 p-5 sm:p-6">
+        <div className="flex items-center gap-2">
+          <CalendarCheck2 className="h-4 w-4 text-primary" aria-hidden="true" />
+          <p className="text-sm font-bold text-foreground">مواعيد هذا الأسبوع</p>
+        </div>
         <div className="grid grid-cols-3 gap-3">
           <Stat label="الإجمالي" value={dash ?? data?.weekTotal ?? 0} />
           <Stat label="مؤكدة" value={dash ?? data?.weekConfirmed ?? 0} />
@@ -157,8 +175,11 @@ export function OperationalDashboard() {
         </div>
       </Card>
 
-      <Card className="space-y-3">
-        <p className="text-sm font-semibold text-muted-foreground">أكثر 3 خدمات طلبًا هذا الشهر</p>
+      <Card className="space-y-4 p-5 sm:p-6">
+        <div className="flex items-center gap-2">
+          <Stethoscope className="h-4 w-4 text-primary" aria-hidden="true" />
+          <p className="text-sm font-bold text-foreground">أكثر 3 خدمات طلبًا هذا الشهر</p>
+        </div>
         {isLoading ? (
           <p className="text-sm text-muted-foreground">جارٍ التحميل...</p>
         ) : (data?.topServices.length ?? 0) === 0 ? (
@@ -168,7 +189,7 @@ export function OperationalDashboard() {
             {data?.topServices.map((item, index) => (
               <li
                 key={item.service}
-                className="flex items-center justify-between rounded-2xl bg-secondary/60 px-3 py-2 text-sm"
+                className="flex items-center justify-between rounded-2xl border border-border/50 bg-secondary/45 px-4 py-3 text-sm"
               >
                 <span className="font-medium text-foreground">
                   {index + 1}. {item.service}
@@ -180,30 +201,56 @@ export function OperationalDashboard() {
         )}
       </Card>
 
-      <Card className="space-y-3">
-        <p className="text-sm font-semibold text-muted-foreground">الزيارات خلال آخر 7 أيام</p>
-        <div className="h-56 w-full" dir="ltr">
+      <Card className="space-y-5 overflow-hidden p-5 sm:p-6">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-bold text-foreground">الزيارات خلال آخر 7 أيام</p>
+            <p className="mt-1 text-xs text-muted-foreground">عدد الزيارات اليومية المسجلة</p>
+          </div>
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <Activity className="h-4 w-4" aria-hidden="true" />
+          </span>
+        </div>
+        <div className="h-64 w-full" dir="ltr">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data?.chart ?? []}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-              <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={11} />
+            <AreaChart data={data?.chart ?? []} margin={{ top: 12, right: 8, left: -12, bottom: 0 }}>
+              <defs>
+                <linearGradient id="visitsFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.3} />
+                  <stop offset="100%" stopColor="var(--primary)" stopOpacity={0.02} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="4 6" stroke="var(--border)" vertical={false} />
+              <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={11} tickMargin={12} stroke="var(--muted-foreground)" />
               <YAxis
                 allowDecimals={false}
+                domain={[0, (dataMax: number) => Math.max(3, dataMax + 1)]}
                 tickLine={false}
                 axisLine={false}
                 width={24}
                 fontSize={11}
+                tickMargin={8}
+                stroke="var(--muted-foreground)"
               />
               <Tooltip
-                cursor={{ fill: "hsl(var(--secondary))" }}
+                cursor={{ stroke: "var(--border)", strokeDasharray: "4 4" }}
+                contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: "12px", color: "var(--popover-foreground)" }}
                 labelFormatter={(label) => `${label}`}
                 formatter={(value) => [`${value}`, "زيارات"]}
               />
-              <Bar dataKey="count" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} />
-            </BarChart>
+              <Area
+                type="monotone"
+                dataKey="count"
+                stroke="var(--primary)"
+                strokeWidth={3}
+                fill="url(#visitsFill)"
+                dot={{ r: 4, fill: "var(--card)", stroke: "var(--primary)", strokeWidth: 2 }}
+                activeDot={{ r: 6, fill: "var(--primary)", stroke: "var(--card)", strokeWidth: 3 }}
+              />
+            </AreaChart>
           </ResponsiveContainer>
         </div>
       </Card>
-    </div>
+    </section>
   );
 }

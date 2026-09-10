@@ -1,4 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
+import { CalendarDays, UsersRound, WalletCards } from "lucide-react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/app-shell";
 import { formatMoney, todayISO } from "@/lib/clinic";
@@ -58,24 +60,74 @@ function useRangeStats(range: RangeKey) {
   });
 }
 
-export function RangeCard({ range }: { range: RangeKey }) {
+function RangeMetrics({ range }: { range: RangeKey }) {
   const { data, isLoading } = useRangeStats(range);
 
   return (
-    <Card className="space-y-3">
-      <p className="text-sm font-semibold text-muted-foreground">{RANGE_LABELS[range]}</p>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-2xl bg-secondary/60 p-3 text-center">
-          <p className="text-xs text-muted-foreground">إجمالي الإيرادات</p>
-          <p className="mt-1 text-lg font-bold text-primary">
-            {isLoading ? "..." : formatMoney(data?.revenue ?? 0)}
-          </p>
+    <div className="grid grid-cols-2 gap-3">
+      <div className="min-w-0 rounded-2xl border border-border/60 bg-secondary/45 p-4 sm:p-5">
+        <div className="mb-5 flex items-center justify-between gap-2">
+          <p className="text-xs font-semibold text-muted-foreground sm:text-sm">إجمالي الإيرادات</p>
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <WalletCards className="h-4 w-4" aria-hidden="true" />
+          </span>
         </div>
-        <div className="rounded-2xl bg-secondary/60 p-3 text-center">
-          <p className="text-xs text-muted-foreground">عدد المرضى</p>
-          <p className="mt-1 text-lg font-bold text-foreground">{isLoading ? "..." : data?.patients ?? 0}</p>
-        </div>
+        <p className="break-words text-xl font-extrabold text-primary sm:text-2xl">
+          {isLoading ? "..." : formatMoney(data?.revenue ?? 0)}
+        </p>
       </div>
+      <div className="min-w-0 rounded-2xl border border-border/60 bg-secondary/45 p-4 sm:p-5">
+        <div className="mb-5 flex items-center justify-between gap-2">
+          <p className="text-xs font-semibold text-muted-foreground sm:text-sm">عدد المرضى</p>
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground">
+            <UsersRound className="h-4 w-4" aria-hidden="true" />
+          </span>
+        </div>
+        <p className="text-2xl font-extrabold text-foreground sm:text-3xl">{isLoading ? "..." : data?.patients ?? 0}</p>
+      </div>
+    </div>
+  );
+}
+
+export function AccountsOverview({ ranges }: { ranges: RangeKey[] }) {
+  const [activeRange, setActiveRange] = useState<RangeKey>(ranges[0] ?? "today");
+
+  return (
+    <Card className="space-y-5 p-5 sm:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-base font-bold text-foreground">نظرة عامة</p>
+          <p className="mt-1 text-xs text-muted-foreground">ملخص الإيرادات وحركة المرضى</p>
+        </div>
+        <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+          <CalendarDays className="h-5 w-5" aria-hidden="true" />
+        </span>
+      </div>
+
+      {ranges.length > 1 ? (
+        <div className="grid grid-cols-3 rounded-2xl bg-secondary/70 p-1" role="tablist" aria-label="الفترة الزمنية">
+          {ranges.map((range) => (
+            <button
+              key={range}
+              type="button"
+              role="tab"
+              aria-selected={activeRange === range}
+              onClick={() => setActiveRange(range)}
+              className={`min-h-10 rounded-xl px-2 text-xs font-bold transition-all sm:text-sm ${
+                activeRange === range
+                  ? "bg-card text-primary shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {RANGE_LABELS[range]}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <p className="border-b border-border/60 pb-3 text-sm font-semibold text-primary">{RANGE_LABELS[activeRange]}</p>
+      )}
+
+      <RangeMetrics range={activeRange} />
     </Card>
   );
 }
