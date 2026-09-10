@@ -1,13 +1,20 @@
-export type AppointmentStatus = "waiting" | "with_doctor" | "done" | "cancelled";
+export type AppointmentStatus = "waiting" | "with_doctor" | "done" | "cancelled" | "no_show";
 
 export const STATUS_LABELS: Record<AppointmentStatus, string> = {
   waiting: "في الانتظار",
   with_doctor: "مع الطبيب",
   done: "انتهى",
   cancelled: "ملغي",
+  no_show: "لم يحضر",
 };
 
-export const STATUS_OPTIONS: AppointmentStatus[] = ["waiting", "with_doctor", "done", "cancelled"];
+export const STATUS_OPTIONS: AppointmentStatus[] = [
+  "waiting",
+  "with_doctor",
+  "done",
+  "cancelled",
+  "no_show",
+];
 
 export type Patient = {
   id: string;
@@ -30,7 +37,9 @@ export type Appointment = {
   created_at: string | null;
 };
 
-export type AppointmentWithPatient = Appointment & { patients: Pick<Patient, "id" | "full_name" | "phone"> | null };
+export type AppointmentWithPatient = Appointment & {
+  patients: Pick<Patient, "id" | "full_name" | "phone"> | null;
+};
 
 export type InvoiceItem = {
   id: string;
@@ -70,9 +79,11 @@ export function formatTime(time: string) {
 }
 
 export function formatDate(date: string) {
-  return new Intl.DateTimeFormat("ar-EG", { day: "numeric", month: "long", year: "numeric" }).format(
-    new Date(`${date}T00:00:00`),
-  );
+  return new Intl.DateTimeFormat("ar-EG", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date(`${date}T00:00:00`));
 }
 
 export const CURRENCY = "جنيه";
