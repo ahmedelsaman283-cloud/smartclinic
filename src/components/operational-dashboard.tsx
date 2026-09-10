@@ -1,6 +1,21 @@
 import { useQuery } from "@tanstack/react-query";
-import { Activity, CalendarCheck2, ChartNoAxesCombined, CircleDollarSign, Stethoscope, UserPlus } from "lucide-react";
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import {
+  Activity,
+  CalendarCheck2,
+  ChartNoAxesCombined,
+  CircleDollarSign,
+  Stethoscope,
+  UserPlus,
+} from "lucide-react";
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/app-shell";
 import { formatMoney, todayISO } from "@/lib/clinic";
@@ -124,7 +139,15 @@ function useOperationalStats() {
   });
 }
 
-function Stat({ label, value, icon: Icon }: { label: string; value: string | number; icon?: typeof Activity }) {
+function Stat({
+  label,
+  value,
+  icon: Icon,
+}: {
+  label: string;
+  value: string | number;
+  icon?: typeof Activity;
+}) {
   return (
     <div className="min-w-0 rounded-2xl border border-border/50 bg-secondary/45 p-4">
       <div className="flex items-center gap-2 text-muted-foreground">
@@ -144,7 +167,9 @@ export function OperationalDashboard() {
     <section className="space-y-5" aria-labelledby="operations-title">
       <div className="flex items-end justify-between gap-3 px-1 pt-1">
         <div>
-          <h2 id="operations-title" className="text-lg font-bold text-foreground">مؤشرات التشغيل</h2>
+          <h2 id="operations-title" className="text-lg font-bold text-foreground">
+            مؤشرات التشغيل
+          </h2>
           <p className="mt-1 text-xs text-muted-foreground">أداء العيادة خلال الفترة الحالية</p>
         </div>
         <ChartNoAxesCombined className="h-5 w-5 text-primary" aria-hidden="true" />
@@ -157,8 +182,16 @@ export function OperationalDashboard() {
         </div>
         <div className="grid grid-cols-2 gap-3">
           <Stat label="مرضى جدد" value={dash ?? data?.newPatients ?? 0} icon={UserPlus} />
-          <Stat label="إيرادات مدفوعة" value={dash ?? formatMoney(data?.revenue ?? 0)} icon={CircleDollarSign} />
-          <Stat label="نسبة عدم الحضور" value={dash ?? `${data?.noShowRate ?? 0}%`} icon={Activity} />
+          <Stat
+            label="إيرادات مدفوعة"
+            value={dash ?? formatMoney(data?.revenue ?? 0)}
+            icon={CircleDollarSign}
+          />
+          <Stat
+            label="نسبة عدم الحضور"
+            value={dash ?? `${data?.noShowRate ?? 0}%`}
+            icon={Activity}
+          />
           <Stat label="حالات لم تحضر" value={dash ?? data?.noShow ?? 0} icon={CalendarCheck2} />
         </div>
       </Card>
@@ -213,7 +246,10 @@ export function OperationalDashboard() {
         </div>
         <div className="h-64 w-full" dir="ltr">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data?.chart ?? []} margin={{ top: 12, right: 8, left: -12, bottom: 0 }}>
+            <AreaChart
+              data={data?.chart ?? []}
+              margin={{ top: 12, right: 8, left: -12, bottom: 0 }}
+            >
               <defs>
                 <linearGradient id="visitsFill" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.3} />
@@ -221,7 +257,14 @@ export function OperationalDashboard() {
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="4 6" stroke="var(--border)" vertical={false} />
-              <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={11} tickMargin={12} stroke="var(--muted-foreground)" />
+              <XAxis
+                dataKey="label"
+                tickLine={false}
+                axisLine={false}
+                fontSize={11}
+                tickMargin={12}
+                stroke="var(--muted-foreground)"
+              />
               <YAxis
                 allowDecimals={false}
                 domain={[0, (dataMax: number) => Math.max(3, dataMax + 1)]}
@@ -234,7 +277,12 @@ export function OperationalDashboard() {
               />
               <Tooltip
                 cursor={{ stroke: "var(--border)", strokeDasharray: "4 4" }}
-                contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: "12px", color: "var(--popover-foreground)" }}
+                contentStyle={{
+                  background: "var(--popover)",
+                  border: "1px solid var(--border)",
+                  borderRadius: "12px",
+                  color: "var(--popover-foreground)",
+                }}
                 labelFormatter={(label) => `${label}`}
                 formatter={(value) => [`${value}`, "زيارات"]}
               />

@@ -52,7 +52,11 @@ function useRangeStats(range: RangeKey) {
       if (appointmentsRes.error) throw appointmentsRes.error;
       const revenue = (invoicesRes.data ?? []).reduce(
         (sum, row) =>
-          sum + ((row.invoice_items ?? []) as { price: number | null }[]).reduce((s, i) => s + Number(i.price ?? 0), 0),
+          sum +
+          ((row.invoice_items ?? []) as { price: number | null }[]).reduce(
+            (s, i) => s + Number(i.price ?? 0),
+            0,
+          ),
         0,
       );
       return { revenue, patients: appointmentsRes.count ?? 0 };
@@ -83,7 +87,9 @@ function RangeMetrics({ range }: { range: RangeKey }) {
             <UsersRound className="h-4 w-4" aria-hidden="true" />
           </span>
         </div>
-        <p className="text-2xl font-extrabold text-foreground sm:text-3xl">{isLoading ? "..." : data?.patients ?? 0}</p>
+        <p className="text-2xl font-extrabold text-foreground sm:text-3xl">
+          {isLoading ? "..." : (data?.patients ?? 0)}
+        </p>
       </div>
     </div>
   );
@@ -105,7 +111,11 @@ export function AccountsOverview({ ranges }: { ranges: RangeKey[] }) {
       </div>
 
       {ranges.length > 1 ? (
-        <div className="grid grid-cols-3 rounded-2xl bg-secondary/70 p-1" role="tablist" aria-label="الفترة الزمنية">
+        <div
+          className="grid grid-cols-3 rounded-2xl bg-secondary/70 p-1"
+          role="tablist"
+          aria-label="الفترة الزمنية"
+        >
           {ranges.map((range) => (
             <button
               key={range}
@@ -124,7 +134,9 @@ export function AccountsOverview({ ranges }: { ranges: RangeKey[] }) {
           ))}
         </div>
       ) : (
-        <p className="border-b border-border/60 pb-3 text-sm font-semibold text-primary">{RANGE_LABELS[activeRange]}</p>
+        <p className="border-b border-border/60 pb-3 text-sm font-semibold text-primary">
+          {RANGE_LABELS[activeRange]}
+        </p>
       )}
 
       <RangeMetrics range={activeRange} />
