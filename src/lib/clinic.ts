@@ -1,13 +1,20 @@
-export type AppointmentStatus = "waiting" | "with_doctor" | "done" | "cancelled";
+export type AppointmentStatus = "waiting" | "with_doctor" | "done" | "cancelled" | "no_show";
 
 export const STATUS_LABELS: Record<AppointmentStatus, string> = {
   waiting: "في الانتظار",
   with_doctor: "مع الطبيب",
   done: "انتهى",
   cancelled: "ملغي",
+  no_show: "لم يحضر",
 };
 
-export const STATUS_OPTIONS: AppointmentStatus[] = ["waiting", "with_doctor", "done", "cancelled"];
+export const STATUS_OPTIONS: AppointmentStatus[] = [
+  "waiting",
+  "with_doctor",
+  "done",
+  "cancelled",
+  "no_show",
+];
 
 export type Patient = {
   id: string;
