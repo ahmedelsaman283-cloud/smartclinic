@@ -45,34 +45,35 @@ function useOperationalStats() {
   return useQuery({
     queryKey: ["operational-dashboard", from, to],
     queryFn: async () => {
-      const [patientsRes, monthApptRes, weekApptRes, weekVisitsRes, invoicesRes] = await Promise.all([
-        supabase
-          .from("patients")
-          .select("id", { count: "exact", head: true })
-          .gte("created_at", `${from}T00:00:00`)
-          .lte("created_at", `${to}T23:59:59.999`),
-        supabase
-          .from("appointments")
-          .select("status")
-          .gte("appointment_date", from)
-          .lte("appointment_date", to),
-        supabase
-          .from("appointments")
-          .select("status")
-          .gte("appointment_date", week)
-          .lte("appointment_date", to),
-        supabase
-          .from("appointments")
-          .select("appointment_date, status")
-          .gte("appointment_date", sevenFrom)
-          .lte("appointment_date", to),
-        supabase
-          .from("invoices")
-          .select("created_at, invoice_items(service, price)")
-          .eq("payment_status", "paid")
-          .gte("created_at", `${from}T00:00:00`)
-          .lte("created_at", `${to}T23:59:59.999`),
-      ]);
+      const [patientsRes, monthApptRes, weekApptRes, weekVisitsRes, invoicesRes] =
+        await Promise.all([
+          supabase
+            .from("patients")
+            .select("id", { count: "exact", head: true })
+            .gte("created_at", `${from}T00:00:00`)
+            .lte("created_at", `${to}T23:59:59.999`),
+          supabase
+            .from("appointments")
+            .select("status")
+            .gte("appointment_date", from)
+            .lte("appointment_date", to),
+          supabase
+            .from("appointments")
+            .select("status")
+            .gte("appointment_date", week)
+            .lte("appointment_date", to),
+          supabase
+            .from("appointments")
+            .select("appointment_date, status")
+            .gte("appointment_date", sevenFrom)
+            .lte("appointment_date", to),
+          supabase
+            .from("invoices")
+            .select("created_at, invoice_items(service, price)")
+            .eq("payment_status", "paid")
+            .gte("created_at", `${from}T00:00:00`)
+            .lte("created_at", `${to}T23:59:59.999`),
+        ]);
 
       for (const res of [patientsRes, monthApptRes, weekApptRes, weekVisitsRes, invoicesRes]) {
         if (res.error) throw res.error;
@@ -83,8 +84,11 @@ function useOperationalStats() {
       const noShow = monthAppts.filter((a) => a.status === "no_show").length;
       const noShowRate = monthAppts.length ? Math.round((noShow / monthAppts.length) * 100) : 0;
 
-      const items = ((invoicesRes.data ?? []) as { invoice_items: { service: string; price: number | null }[] | null }[])
-        .flatMap((inv) => inv.invoice_items ?? []);
+      const items = (
+        (invoicesRes.data ?? []) as {
+          invoice_items: { service: string; price: number | null }[] | null;
+        }[]
+      ).flatMap((inv) => inv.invoice_items ?? []);
       const revenue = items.reduce((sum, i) => sum + Number(i.price ?? 0), 0);
 
       const counts = new Map<string, number>();
@@ -106,7 +110,8 @@ function useOperationalStats() {
       return {
         newPatients: patientsRes.count ?? 0,
         weekTotal: weekAppts.length,
-        weekConfirmed: weekAppts.filter((a) => a.status !== "cancelled" && a.status !== "no_show").length,
+        weekConfirmed: weekAppts.filter((a) => a.status !== "cancelled" && a.status !== "no_show")
+          .length,
         weekCancelled: weekAppts.filter((a) => a.status === "cancelled").length,
         noShowRate,
         noShow,
@@ -136,19 +141,19 @@ export function OperationalDashboard() {
       <Card className="space-y-3">
         <p className="text-sm font-semibold text-muted-foreground">لوحة التشغيل — هذا الشهر</p>
         <div className="grid grid-cols-2 gap-3">
-          <Stat label="مرضى جدد" value={dash ?? (data?.newPatients ?? 0)} />
+          <Stat label="مرضى جدد" value={dash ?? data?.newPatients ?? 0} />
           <Stat label="إيرادات مدفوعة" value={dash ?? formatMoney(data?.revenue ?? 0)} />
           <Stat label="نسبة عدم الحضور" value={dash ?? `${data?.noShowRate ?? 0}%`} />
-          <Stat label="حالات لم تحضر" value={dash ?? (data?.noShow ?? 0)} />
+          <Stat label="حالات لم تحضر" value={dash ?? data?.noShow ?? 0} />
         </div>
       </Card>
 
       <Card className="space-y-3">
         <p className="text-sm font-semibold text-muted-foreground">مواعيد هذا الأسبوع</p>
         <div className="grid grid-cols-3 gap-3">
-          <Stat label="الإجمالي" value={dash ?? (data?.weekTotal ?? 0)} />
-          <Stat label="مؤكدة" value={dash ?? (data?.weekConfirmed ?? 0)} />
-          <Stat label="ملغية" value={dash ?? (data?.weekCancelled ?? 0)} />
+          <Stat label="الإجمالي" value={dash ?? data?.weekTotal ?? 0} />
+          <Stat label="مؤكدة" value={dash ?? data?.weekConfirmed ?? 0} />
+          <Stat label="ملغية" value={dash ?? data?.weekCancelled ?? 0} />
         </div>
       </Card>
 
@@ -182,7 +187,13 @@ export function OperationalDashboard() {
             <BarChart data={data?.chart ?? []}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
               <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={11} />
-              <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={24} fontSize={11} />
+              <YAxis
+                allowDecimals={false}
+                tickLine={false}
+                axisLine={false}
+                width={24}
+                fontSize={11}
+              />
               <Tooltip
                 cursor={{ fill: "hsl(var(--secondary))" }}
                 labelFormatter={(label) => `${label}`}
