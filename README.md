@@ -1,186 +1,215 @@
-# Smart Clinic Staff
+# Smart Clinic
 
-Build a clinic management web app called "Smart Clinic" with 2 staff roles, each with separate login and dashboard: Receptionist and Doctor. There is NO patient-facing interface in this app — patient booking and follow-up are handled entirely through an external WhatsApp/Telegram bot connected via n8n, which writes directly to this same Supabase database. This app is purely a staff tool.
+A **multi-tenant clinic management SaaS**: a mobile-first staff app for receptionists and doctors, plus an AI-powered chat bot that lets patients book, cancel, and reschedule appointments and ask about their last visit. Many clinics run on the same platform at the same time, each with fully isolated data and its own monthly subscription plan with a message limit.
 
-AUTHENTICATION
+> **Live demo:** https://smartclinic-six.vercel.app/auth/staff
+> **Status:** MVP complete, bot in a trial phase. Telegram is live; WhatsApp support is in progress.
 
-- Use Supabase Auth for login/signup
+<!-- TODO: add 2-3 screenshots here (receptionist home, doctor queue, patient file) -->
 
-- There is no public signup page. Receptionist and Doctor accounts are created manually by an admin via Supabase Dashboard.
+---
 
-- After login, redirect each role to its own dashboard based on a "role" field stored in a "profiles" table (values: 'receptionist' or 'doctor').
+## Why this exists
 
-- A single login page at /auth/staff with email + password. After successful login, fetch the user's role from "profiles" and redirect accordingly. If no matching role is found, show an error and sign the user out.
+Small clinics still run on paper, phone calls, and WhatsApp messages. Smart Clinic replaces that with:
 
-DESIGN
+- one place where staff see today's queue in real time,
+- a bot that handles the repetitive patient conversations 24/7,
+- a patient record the doctor reviews *before* writing today's notes,
+- a SaaS model: onboard a clinic, give it a plan, and it runs on shared infrastructure without ever seeing another clinic's data.
 
-- Mobile-first design using a BOTTOM NAVIGATION BAR (not a sidebar) — similar to a mobile app, since staff will mostly use this on phones/tablets while moving around the clinic.
+There is **no patient-facing app**. Patients only talk to the bot; staff only use the web app. Both read and write the same Supabase database.
 
-- Clean, calm, minimal design — white background, blue accent color, generous white space, rounded cards, soft shadows.
+---
 
-- All visible text, labels, buttons must be in Arabic, with right-to-left (RTL) layout. Only underlying code/variable names should be in English.
+## Architecture
 
-RECEPTIONIST DASHBOARD
+```mermaid
+flowchart LR
+    P[Patient] -->|Telegram / WhatsApp| N[n8n workflows]
+    N <-->|read / write| DB[(Supabase<br/>Postgres + Auth + Storage + Realtime)]
+    S[Receptionist / Doctor] --> W[Staff web app]
+    W <-->|read / write| DB
+```
 
-Bottom nav tabs: الرئيسية (Home) / المرضى (Patients) / المواعيد (Appointments) / الفواتير (Invoices)
+| Layer | Tech |
+|---|---|
+| Staff app | TypeScript, TanStack Start, Bun |
+| Backend | Supabase (Postgres, Auth, Row Level Security, Storage, Realtime) |
+| Automation | n8n |
+| AI | Google Gemini (message classification + conversational agents) |
+| Patient channels | Telegram (live), WhatsApp (in progress) |
 
-- Home screen: today's appointments table with columns: patient name, time, status. Status is a dropdown with options: waiting, with doctor, done, cancelled — changing it updates instantly.
+The staff app was scaffolded with [Lovable](https://lovable.dev) and then extended by hand.
 
-- Each row also has a "تأكيد الوصول" (Confirm Arrival) button. Clicking it:
+---
 
-  1. Sets the appointment status to "waiting"
+## Multi-clinic (multi-tenant) design
 
-  2. Automatically creates a new invoice row (payment_status = 'unpaid') linked to that patient, ready for the receptionist to fill in the service/price afterward.
+Multiple clinics are served at the same time from one deployment and one database.
 
-- "إضافة مريض جديد" (Add new patient) button opens a modal with fields: full name, phone number, date of birth.
+- **Clinics table.** Every clinic has a row in `clinics` with a unique `clinic_code`.
+- **Tenant column everywhere.** `profiles`, `patients`, `appointments`, `invoices`, `invoice_items`, and `patient_files` all carry a `clinic_id`, which is filled in automatically from the logged-in user's profile.
+- **Isolation enforced in the database.** Row Level Security policies only allow access to rows where `clinic_id` matches the current user's clinic, so a bug in the app cannot leak data across clinics.
+- **File isolation.** Patient files are stored in a private storage bucket, with each clinic's files under its own folder and storage policies tied to the same rule.
+- **Staff onboarding.** A clinic's first doctor is attached to it through the `clinic_code` set when the account is created; every other account is added by a doctor from that clinic and inherits its clinic.
+- **Bot isolation.** Each clinic's bot workflow is configured with that clinic's ID. Every database query and every conversation memory key includes it, so patients, bookings, and chat context never mix between clinics.
 
-- "حجز موعد فوري" (Add walk-in appointment) button to book a same-day appointment directly without going through the external chat bot — select existing patient or create new one inline, pick time and optional reason.
+---
 
-- Invoices page: list of invoices with patient name, service, price, payment status (paid/unpaid), and a button to mark as paid. Ability to edit service/price on invoices created via "confirm arrival".
+## Subscriptions and message limits
 
-- A search bar (on Patients page) to find any patient by name or phone, showing their basic info and appointment history.
+Each clinic is on a **monthly plan with a message limit** (the number of patient messages the bot may handle per day).
 
-DOCTOR DASHBOARD
+Before the bot processes any message, it looks up the clinic's subscription and only continues if:
 
-Bottom nav tabs: قائمة اليوم (Today's Queue) / المرضى (Patients/Search)
+1. the plan has not expired (`end_date` is today or later), and
+2. the clinic is still under its limit (`messages_used < message_limit`).
 
-- Today's Queue screen: today's patient queue in appointment order, showing name and time, with a clearly highlighted "current patient" card at the top and the rest of the waiting list below it. This should update in real time when the receptionist changes an appointment's status (e.g., to "with doctor").
+This keeps AI costs predictable per clinic and makes tiered pricing straightforward: a bigger plan is just a bigger `message_limit` and a later `end_date`.
 
-- Clicking a patient opens their full file page (/doctor/patient/:id), with this EXACT order:
+---
 
-  1. Basic info section: name, phone, date of birth
+## Staff app
 
-  2. "السجل" (Medical History) section — a clear, fully visible timeline of all past visits (date + doctor's notes for each), sorted most recent first. This must appear BEFORE the note-taking area, so the doctor reviews history before writing today's diagnosis.
+Arabic UI, right-to-left layout, bottom navigation bar (designed for phones and tablets used while moving around the clinic). Clean, calm look: white background, blue accent, rounded cards.
 
-  3. "زيارة اليوم" (Today's Visit) section at the bottom — a text area to write notes for today's visit, with a "حفظ الملاحظات" (Save Notes) button that saves to the appointments table.
+### Authentication
+- Single login page at `/auth/staff` (email + password) using Supabase Auth.
+- **No public sign-up.** Nobody can create an account for themselves. The first doctor account of each clinic is created by the platform admin; after that, doctors add their own team from inside the app (see *Team management* below).
+- After login, the user's `role` is read from the `profiles` table and they are redirected to their own dashboard. If no valid role is found, the user is signed out with an error.
 
-- A search bar (on Patients tab) to look up any patient's history by name or phone.
+### Receptionist
+Tabs: **Home / Patients / Appointments / Invoices / Accounts**
 
-DATABASE (Supabase/Postgres)
+- **Today's appointments** table (patient, time, status). Status dropdown: `waiting`, `with_doctor`, `done`, `cancelled`, `no_show`. Changes apply instantly.
+- **Confirm arrival** button: sets the appointment to `waiting` and automatically creates an `unpaid` invoice for the patient.
+- **Add patient** (name, phone, date of birth).
+- **Walk-in appointment**: book a same-day slot for an existing or new patient, with an optional reason.
+- **Invoices**: search by patient name, filter by period (today, this week, this month, custom range) and by payment status. Each invoice holds several service line items with prices and a running total; edit, save, or mark as paid.
+- **Accounts**: revenue and patient-count overview for the selected period.
+- **Patient search** by name or phone, with basic info and appointment history.
 
-Table "profiles":
+### Doctor
+Tabs: **Today's Queue / Patients / Accounts / Team**
 
-  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+- **Live queue** in appointment order, with the current patient highlighted at the top. Updates in real time when the receptionist changes a status.
+- **Patient file** (`/doctor/patient/:id`) in a deliberate order:
+  1. Basic info
+  2. **Medical history**: timeline of past visits (date + doctor's notes), most recent first
+  3. **Today's visit**: notes, diagnosis, and treatment plan, with a save button
 
-  role TEXT NOT NULL CHECK (role IN ('receptionist', 'doctor')),
+  History comes *before* the notes box so the doctor reviews the past before writing a new diagnosis.
+- **Medical report**: download the patient's visit history (diagnosis, treatment plan, notes) as a PDF.
+- **Patient files**: documents and images attached to the patient record, stored per clinic.
+- **Accounts**: the same revenue overview the receptionist sees.
+- **Patient search** by name or phone.
 
-  created_at TIMESTAMPTZ DEFAULT NOW()
+### Team management (doctor only)
+Doctors manage their own clinic's staff from the **Team** tab: see everyone on the clinic team, and add a new member with full name, email, a temporary password, and a role (receptionist or doctor). This is the only way accounts are created, and it is available to doctors only, so a clinic can onboard its own receptionists and additional doctors without contacting the platform admin. New members always belong to the creating doctor's clinic.
 
-Table "patients":
+---
 
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+## Patient bot (n8n)
 
-  full_name TEXT NOT NULL,
+Workflow files live in [`/automation`](./automation) <!-- TODO: move the two JSON exports into this folder -->.
 
-  phone TEXT,
+### 1. Chat assistant (`My Smart Clinic`)
 
-  date_of_birth DATE,
+```
+Telegram message
+   -> attach clinic context
+   -> check clinic subscription (not expired, under message limit)
+   -> AI classifier  (order | cancel | reschedule | followup | questions | general)
+   -> specialised AI agent for that intent
+   -> reply to the patient
+```
 
-  created_at TIMESTAMPTZ DEFAULT NOW()
+Each agent has its own instructions and only the database tools it needs:
 
-Table "appointments":
+| Intent | What the bot does |
+|---|---|
+| **order** | Collects name, phone, date, and time. Finds or creates the patient, checks the slot is free, then books. Enforces working hours and a same-day booking cutoff. Asks for AM/PM when a time is ambiguous. |
+| **cancel** | Finds the patient's upcoming `waiting` appointment and cancels it. |
+| **reschedule** | Moves an existing appointment to a new free slot. |
+| **followup** | Identifies the patient by chat ID and relays the date, reason, and doctor's notes of their latest visit **word for word**. It never interprets results or gives medical advice. |
+| **questions / general** | Answers clinic questions and greetings. |
 
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+Design choices worth noting:
+- A classifier first, then focused agents, keeps each prompt short and predictable.
+- Conversation memory is keyed per clinic and per chat, so context is never mixed between patients or clinics.
+- The follow-up agent is deliberately restricted to recorded facts; when something is missing it says so and hands off to staff.
 
-  patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+### 2. Daily reminders (`Clinic-Alert Bot Handler`)
 
-  appointment_date DATE NOT NULL,
+Runs every day at 08:00 (Africa/Cairo):
 
-  appointment_time TIME NOT NULL,
+1. Fetch today's `waiting` appointments for the clinic.
+2. For each patient with a linked Telegram chat, send a reminder with the appointment time and their expected position in the queue.
 
-  status TEXT NOT NULL DEFAULT 'waiting' CHECK (status IN ('waiting', 'with_doctor', 'done', 'cancelled')),
+---
 
-  reason TEXT,
+## Data model
 
-  notes TEXT,
+| Table | Purpose |
+|---|---|
+| `clinics` | One row per clinic: name and unique `clinic_code` |
+| `subscriptions` | Per-clinic plan: `end_date`, `message_limit`, `messages_used` |
+| `profiles` | Staff: full name, role (`receptionist` or `doctor`), clinic |
+| `patients` | Name, phone, date of birth, linked Telegram chat |
+| `appointments` | Patient, date, time, status, reason, notes, diagnosis, treatment plan |
+| `invoices` | Patient, linked appointment, payment status |
+| `invoice_items` | Service line items (service + price) belonging to an invoice |
+| `patient_files` | Metadata for files attached to a patient (stored in the `patient-files` bucket) |
 
-  created_at TIMESTAMPTZ DEFAULT NOW()
+Security:
+- Row Level Security is enabled on every table and scoped by clinic (see the multi-tenant section above).
+- Helper functions (`is_staff`, `current_clinic_id`) are `SECURITY DEFINER` with a fixed `search_path`, and their execute permission is revoked from anonymous users.
+- A database trigger creates a `profiles` row when an auth user is created, reading `role`, `full_name`, and `clinic_code` from the user metadata.
+- Realtime is enabled on `appointments` to power the live doctor queue.
 
-Table "invoices":
+---
 
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+## Getting started
 
-  patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
-
-  appointment_id UUID REFERENCES appointments(id) ON DELETE SET NULL,
-
-  service TEXT,
-
-  price NUMERIC DEFAULT 0,
-
-  payment_status TEXT NOT NULL DEFAULT 'unpaid' CHECK (payment_status IN ('paid', 'unpaid')),
-
-  created_at TIMESTAMPTZ DEFAULT NOW()
-
-IMPORTANT — Auth trigger and permissions (required to avoid RLS/permission errors):
-
-Enable RLS on all tables, with policies allowing any authenticated staff (role IN ('receptionist','doctor')) full access to patients, appointments, and invoices, and allowing users to read/update only their own profiles row.
-
-Also run this trigger function exactly, including the explicit search_path and public schema prefix (required for the trigger to work correctly with Supabase's SECURITY DEFINER functions):
-
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-
-RETURNS TRIGGER
-
-LANGUAGE plpgsql
-
-SECURITY DEFINER
-
-SET search_path = public
-
-AS $$
-
-BEGIN
-
-  INSERT INTO public.profiles (id, role)
-
-  VALUES (NEW.id, COALESCE(NEW.raw_user_meta_data->>'role', 'receptionist'))
-
-  ON CONFLICT (id) DO NOTHING;
-
-  RETURN NEW;
-
-END;
-
-$$;
-
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-
-CREATE TRIGGER on_auth_user_created
-
-  AFTER INSERT ON auth.users
-
-  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
-
-Also explicitly grant table permissions to the authenticated role (Supabase does not always do this automatically):
-
-GRANT SELECT, INSERT, UPDATE ON public.profiles TO authenticated;
-
-GRANT SELECT, INSERT, UPDATE ON public.patients TO authenticated;
-
-GRANT SELECT, INSERT, UPDATE ON public.appointments TO authenticated;
-
-GRANT SELECT, INSERT, UPDATE ON public.invoices TO authenticated;
-
-Do not build any patient-facing pages, signup forms, or chat interfaces — this app is staff-only.
-
-This project was built with [Lovable](https://lovable.dev).
-
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/3ecf1b68-53a2-4373-a489-6a0ec74e4d23).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
-
-## Development
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+**Requirements:** [Bun](https://bun.sh) (or Node.js + npm) and a Supabase project.
 
 ```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
+git clone https://github.com/ahmedelsaman283-cloud/smartclinic.git
+cd smartclinic
+bun install
+bun run dev
 ```
+
+Create a `.env` file in the project root:
+
+```
+VITE_SUPABASE_URL=
+VITE_SUPABASE_PUBLISHABLE_KEY=
+VITE_SUPABASE_PROJECT_ID=
+```
+
+Then:
+
+1. Apply the migrations in [`supabase/migrations`](./supabase/migrations) in order, and create a private storage bucket named `patient-files`.
+2. Create a row in `clinics` for your clinic, and a matching row in `subscriptions` to activate the bot.
+3. Create the clinic's first doctor in the Supabase dashboard (Authentication -> Users) with `role` set to `doctor`, plus `full_name` and `clinic_code` in the user metadata. That doctor adds everyone else from the Team tab.
+4. Open the app and sign in at `/auth/staff`.
+
+To run the bot, import the two workflows from `/automation` into n8n and connect your own Supabase, Telegram, and Gemini credentials. Set the clinic ID in the workflows to your clinic's ID.
+
+---
+
+## Roadmap
+
+- [ ] WhatsApp channel for the bot
+- [ ] Self-service onboarding for new clinics
+- [ ] Admin panel to manage clinics, plans, and usage
+- [ ] Reporting dashboard (daily visits, revenue)
+
+---
+
+## Author
+
+Built by **Ahmed Elsaman Ahmed**, AI automation engineer (n8n, AI agents, SaaS).
+<!-- TODO: add LinkedIn / email -->
