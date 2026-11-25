@@ -111,9 +111,7 @@ Doctors manage their own clinic's staff from the **Team** tab: see everyone on t
 ---
 
 ## Patient bot (n8n)
-
-Workflow files live in [`/automation`](./automation) <!-- TODO: move the two JSON exports into this folder -->.
-
+Workflow files live in [`/clinic`](./clinic).
 ### 1. Chat assistant (`My Smart Clinic`)
 
 ```
@@ -196,7 +194,7 @@ Then:
 3. Create the clinic's first doctor in the Supabase dashboard (Authentication -> Users) with `role` set to `doctor`, plus `full_name` and `clinic_code` in the user metadata. That doctor adds everyone else from the Team tab.
 4. Open the app and sign in at `/auth/staff`.
 
-To run the bot, import the two workflows from `/automation` into n8n and connect your own Supabase, Telegram, and Gemini credentials. Set the clinic ID in the workflows to your clinic's ID.
+To run the bot, import the two workflows from `/clinic` into n8n and connect your own Supabase, Telegram, and Gemini credentials. Set the clinic ID in the workflows to your clinic's ID.
 
 ---
 
